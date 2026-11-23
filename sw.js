@@ -1,6 +1,6 @@
 // 排程表 service worker — 只快取程式檔，不碰任何使用者資料。
 // 每次更新網站時，把下面的版本號改掉，使用者就會看到「有新版本」。
-const CACHE = 'paicheng-beta-0.9.5';
+const CACHE = 'paicheng-beta-0.9.6';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));

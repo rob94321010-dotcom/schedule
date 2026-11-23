@@ -198,6 +198,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .linkBtn{min-height:36px;padding:0 12px;border-radius:999px;font-size:14px;color:var(--ink);border-color:var(--line);background:var(--panel)}
 .demoBtn{min-height:36px;padding:0 12px;border-radius:999px;font-size:14px;background:#fff;color:#1d2b64;border-color:#fff;font-weight:700}
 .hrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-top:12px}.hrow .help{margin-top:0}.help[open]{flex-basis:100%;order:2}
+.qk{position:fixed;z-index:9;width:330px;max-width:calc(100vw - 24px);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.28);padding:14px 16px}
+.qk.sheet{left:0!important;right:0;bottom:0;top:auto!important;width:auto;max-width:none;border-radius:18px 18px 0 0;padding:16px 16px 22px}
+.qk #qkName{font-size:19px;font-weight:700;border-width:0 0 2px;border-radius:0;padding-inline:2px;background:transparent}
+.qk #qkName:focus-visible{outline:0;border-bottom-color:var(--focus)}
+.qkWhen{margin:10px 0 8px;font-size:15px}.qkWhen span{color:var(--mute)}
+.qkCheck{margin:10px 0 0;font-size:14px;min-height:1.2em}.qkCheck.ok{color:var(--ok)}.qkCheck.bad{color:var(--bad);font-weight:700}
+.qk .acts{margin-top:12px}
+.qkScrim{position:fixed;inset:0;z-index:8;background:transparent}.qkScrim.dim{background:rgba(10,14,30,.35)}
+.blk.cmp{cursor:grab}
 .betaTag{font-size:14px;vertical-align:middle;background:#ffd75e;color:#1d2b64;border-radius:999px;padding:2px 10px;font-weight:700}
 .privacy{margin:8px 0 0;font-size:14px;opacity:.9;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .fbBtn{min-height:40px!important;font-size:15px!important;padding:0 14px!important;border-radius:999px!important}
@@ -229,9 +238,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <div class="hBody">
       <p class="hHint">點標題看說明，再點一次收起。</p>
       <details class="hi"><summary>先看示範</summary><div><button type="button" class="demoBtn" data-demo>載入示範資料</button> 看看排人、排課、撞期長什麼樣子。示範資料不會存起來，按「結束示範」就消失，也不會影響你排好的內容。</div></details>
-      <details class="hi"><summary>新增</summary><div>按「＋ 新增」，或點時間軸的空白處。電腦上可以直接在空白處往下拖出一段時間。</div></details>
+      <details class="hi"><summary>新增</summary><div>點時間軸的空白處，會跳出一張小卡片，填標題、選多久，按儲存就好；要填更多（誰／哪裡、頻率、備註）就按「更多選項」。也可以按「＋ 新增」打開完整表單。電腦上可以在空白處往下拖出一段時間。</div></details>
       <details class="hi"><summary>填三樣</summary><div>標題、幾點、多久。時長不在按鈕裡就按「其他」自己填分鐘。打過的標題會自動帶入上次的時長和誰／哪裡。</div></details>
-      <details class="hi"><summary>改時間</summary><div>直接拖動那一格；用手指按住底部的小橫條上下拉，就能拉長或縮短（手機上直接拉）。要搬到別的時段，先按住那格半秒等它浮起來再拖。表單裡也可以按 −5／+5 微調。</div></details>
+      <details class="hi"><summary>改時間</summary><div>直接拖動那一格；在「週」檢視可以直接拖到別天；用手指按住底部的小橫條上下拉，就能拉長或縮短（手機上直接拉）。要搬到別的時段，先按住那格半秒等它浮起來再拖。表單裡也可以按 −5／+5 微調。</div></details>
       <details class="hi"><summary>撞到會警告</summary><div>重疊時會跳出提醒，可以一鍵改到最近的空檔，或確認後照排。</div></details>
       <details class="hi"><summary>看一週或一個月</summary><div>上方切換「日／週／月」。月曆上點某一天就會打開那天。手機上左右滑可以換頁。</div></details>
       <details class="hi"><summary>點一格</summary><div>可以修改或刪除，另外還有：<br>・<b>↻ 展延該時段（一個月～六個月）</b>：同一時段往後延，固定的課、班、會議或客人，一次延一個月到六個月，撞到別人的那週會先跳過。新增時也可以在「頻率」直接選。<br>・<b>💬 異動通知</b>：時間改過（拖曳、修改、交換）之後，下方會出現「💬 通知對方」，按一下就複製好「原本 → 改為」的通知，貼到 LINE 傳給同學或同事。刪除會產生取消通知，展延會列出所有日期。之後點那一格也能再複製。<br>・<b>🔔 加到手機行事曆</b>：下載一個行事曆檔，打開就加進手機內建的行事曆，開始前 30 分鐘手機會跳通知提醒你。</div></details>
@@ -354,6 +363,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
   </aside>
 </main></div>
 
+<div class="qkScrim" id="qkScrim" hidden></div>
+<div class="qk" id="qk" role="dialog" aria-label="快速新增" hidden>
+  <form id="qkForm" autocomplete="off">
+    <input id="qkName" list="nameList" placeholder="標題，例如：鋼琴課、早班" aria-label="標題">
+    <p class="qkWhen" id="qkWhen"></p>
+    <div class="chips" id="qkDur"></div>
+    <p class="qkCheck" id="qkCheck"></p>
+    <div class="acts"><button type="submit" class="primary">儲存</button><button type="button" id="qkMore" class="ghostBtn">更多選項</button></div>
+  </form>
+</div>
 <div class="lock" id="lock">
   <div class="lockBox">
     <h2>排程表</h2>
@@ -702,6 +721,52 @@ function quickAdd(){
   openAt(f!=null?f:from);
 }
 
+/* ---------- quick card (tap an empty slot) ---------- */
+let QK=null;
+function openQuick(min,dur,date,x,y){
+  QK={date:date||day,min,dur:dur||60,res:'',phone:'',hint:'',pre:''};
+  $('qkName').value='';renderQuick();
+  const box=$('qk'),sc=$('qkScrim');box.hidden=false;sc.hidden=false;
+  const sheet=innerWidth<600;box.classList.toggle('sheet',sheet);sc.classList.toggle('dim',sheet);
+  if(!sheet){const w=box.offsetWidth,h=box.offsetHeight;box.style.left=Math.min(innerWidth-w-12,Math.max(12,x-w/2))+'px';box.style.top=Math.min(innerHeight-h-12,Math.max(12,y+14+h<innerHeight-8?y+14:y-h-14))+'px'}
+  setTimeout(()=>$('qkName').focus(),30);
+}
+function closeQuick(){$('qk').hidden=true;$('qkScrim').hidden=true;QK=null;const g=document.getElementById('qkGhost');if(g)g.remove()}
+function quickGhost(){let g=document.getElementById('qkGhost');if(!QK){if(g)g.remove();return}
+  const col=board.querySelector(`[data-col="${QK.date}"]`);if(!col){if(g)g.remove();return}
+  const px=view==='day'?PX:PXW,open=+col.dataset.open;
+  if(!g){g=document.createElement('div');g.id='qkGhost';g.className='ghost'}
+  if(g.parentNode!==col)col.appendChild(g);
+  if(view!=='day'){g.style.left='1px';g.style.right='1px'}
+  g.style.top=((QK.min-open)*px)+'px';g.style.height=Math.max(18,QK.dur*px)+'px';g.textContent=view==='day'?(($('qkName').value.trim()||'（新增）')+' '+ts(QK.min)+'–'+ts(QK.min+QK.dur)):'';}
+function renderQuick(){
+  if(!QK)return;
+  const x={id:'__new',name:$('qkName').value.trim(),res:QK.res,date:QK.date,start:ts(QK.min),dur:QK.dur};
+  $('qkWhen').innerHTML=`${mdw(QK.date)} <b>${ts(QK.min)}–${ts(QK.min+QK.dur)}</b>${QK.res?` <span>· ${esc(QK.res)}</span>`:''}`;
+  const custom=!DURS.includes(QK.dur);
+  $('qkDur').innerHTML=DURS.map(m=>`<button type="button" data-q="${m}" class="${m===QK.dur?'on':''}">${durLabel(m)}</button>`).join('')+(custom?`<button type="button" class="on">${durLabel(QK.dur)}</button>`:'');
+  quickGhost();
+  const hard=clashes(x,items()).hard;
+  $('qkCheck').className='qkCheck '+(hard.length?'bad':'ok');
+  $('qkCheck').textContent=hard.length?`⚠ 會撞到 ${hard.map(y=>y.name+' '+y.start).join('、')}`:(QK.hint||'✓ 這個時段沒問題');
+}
+$('qkDur').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b&&QK){QK.dur=+b.dataset.q;renderQuick()}});
+$('qkName').addEventListener('input',()=>{
+  if(!QK)return;const n=$('qkName').value.trim();
+  if(n&&n!==QK.pre){const past=store.items.filter(y=>y.name===n).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start))[0];
+    if(past){QK.pre=n;QK.dur=+past.dur;QK.res=past.res||'';QK.phone=past.phone||'';QK.hint=`已帶入上次的設定：${durLabel(+past.dur)}${past.res?' · '+past.res:''}`}}
+  renderQuick();
+});
+function quickToForm(){
+  const q=QK;fillForm(null);
+  $('fName').value=$('qkName').value.trim();$('fDate').value=q.date;$('fStart').value=ts(q.min);
+  durSel=q.dur;$('fDur').value=q.dur;$('fRes').value=q.res;if(q.phone)$('fPhone').value=q.phone;prefilledFor=$('fName').value;
+  renderChips();renderCheck();renderTagSug();
+}
+$('qkForm').addEventListener('submit',e=>{e.preventDefault();if(!QK)return;if(!$('qkName').value.trim()){$('qkName').focus();$('qkCheck').className='qkCheck bad';$('qkCheck').textContent='先填標題';return}quickToForm();closeQuick();submitForm()});
+$('qkMore').onclick=()=>{if(!QK)return;quickToForm();closeQuick();openPanel(false)};
+$('qkScrim').addEventListener('click',closeQuick);
+
 /* ---------- overlap dialog ---------- */
 let mHandlers={};
 function askOverlap(x,hard,h){
@@ -851,18 +916,31 @@ board.addEventListener('pointerdown',e=>{
   const b=e.target.closest('.blk'),touch=e.pointerType!=='mouse';
   P={x:e.clientX,y:e.clientY,pid:e.pointerId,col,el:b,id:b?b.dataset.id:null,mode:b?(e.target.classList.contains('grip')?'resize':'move'):'new',touch,armed:false,moved:false,scrolled:false};
   if(P.id){const it=items().find(y=>y.id===P.id);if(!it){P=null;return}P.s0=tm(it.start);P.d0=+it.dur;P.ns=P.s0;P.nd=P.d0}
-  if(view!=='day')return;
+  if(view==='month')return;
+  const wk=view==='week';P.wk=wk;P.date0=P.ndate=col.dataset.col;
+  if(wk){if(P.mode==='resize')P.mode='move';P.cols=[...board.querySelectorAll('.wkcol')].map(c=>({c,r:c.getBoundingClientRect()}))}
   if(P.id){if(!touch||P.mode==='resize'){P.armed=true;if(P.mode==='resize')P.el.classList.add('lift')}else P.timer=setTimeout(()=>{if(P&&!P.scrolled){P.armed=true;P.el.classList.add('lift');try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}}},350)}
-  else if(!touch)P.armed=true;
+  else if(!touch&&!wk)P.armed=true;
 });
 addEventListener('pointermove',e=>{
   if(!P||e.pointerId!==P.pid)return;
   const dx=e.clientX-P.x,dy=e.clientY-P.y;
   if(!P.armed){if(Math.hypot(dx,dy)>8){P.scrolled=true;clearTimeout(P.timer)}return}
-  if(!P.moved&&Math.abs(dy)<5)return;
+  if(!P.moved&&Math.hypot(dx,dy)<5)return;
   P.moved=true;
   const open=+P.col.dataset.open;
-  if(P.id){
+  if(P.id&&P.wk){
+    const delta=Math.round(dy/PXW/15)*15;
+    P.ns=Math.max(0,Math.min(24*60-P.d0,P.s0+delta));P.nd=P.d0;
+    const hit=P.cols.find(o=>e.clientX>=o.r.left&&e.clientX<o.r.right)||P.cols.reduce((a,o)=>Math.abs(e.clientX-(o.r.left+o.r.width/2))<Math.abs(e.clientX-(a.r.left+a.r.width/2))?o:a);
+    if(hit.c!==P.el.parentNode)hit.c.appendChild(P.el);
+    P.ndate=hit.c.dataset.col;
+    P.el.classList.add('lift');P.el.style.left='1px';P.el.style.width='calc(100% - 2px)';
+    P.el.style.top=((P.ns-open)*PXW)+'px';
+    const t=P.el.querySelector('.t');if(t)t.textContent=ts(P.ns);
+    const it=items().find(y=>y.id===P.id);
+    P.el.classList.toggle('bad',clashes({...it,date:P.ndate,start:ts(P.ns),dur:P.nd},items()).hard.length>0);
+  }else if(P.id){
     const delta=Math.round(dy/PX/5)*5;
     if(P.mode==='move'){P.ns=Math.max(0,Math.min(24*60-P.d0,P.s0+delta));P.nd=P.d0}else{P.ns=P.s0;P.nd=Math.max(5,P.d0+delta)}
     P.el.classList.add('lift');
@@ -890,16 +968,18 @@ addEventListener('pointerup',e=>{
     else if(swapSrc){if(g.id===swapSrc)endSwap();else askSwap(swapSrc,g.id)}
     else{if(view==='week')day=g.col.dataset.col;openEdit(g.id)}
   }else{
-    if(g.moved&&g.na!=null)openAt(g.na,g.nb-g.na,g.col.dataset.col);
-    else{const d=g.col.dataset.col;if(view==='week')day=d;openAt(minuteAt(g.y,g.col),0,d)}
+    if(swapSrc)return;
+    if(g.moved&&g.na!=null)openQuick(g.na,g.nb-g.na,g.col.dataset.col,e.clientX,e.clientY);
+    else{const d=g.col.dataset.col;if(view==='week')day=d;openQuick(minuteAt(g.y,g.col),0,d,g.x,g.y)}
   }
 });
 addEventListener('pointercancel',()=>{if(!P)return;clearTimeout(P.timer);P=null;if(ghost){ghost.remove();ghost=null}render()});
 function commitDrag(g){
   const it=items().find(y=>y.id===g.id);if(!it)return;
-  if(g.ns===g.s0&&g.nd===g.d0){render();return}
-  const cand={...it,start:ts(g.ns),dur:g.nd};
-  const apply=s=>mutate(arr=>{const t=arr.find(y=>y.id===g.id);if(t){const old={...t};t.start=ts(s);t.dur=g.nd;markChange(t,old)}},`${it.name} 改到 ${ts(s)}–${ts(s+g.nd)}`,()=>{const t=items().find(y=>y.id===g.id);markSent(g.id);return noticeText(t)});
+  const nd8=g.ndate||it.date;
+  if(g.ns===g.s0&&g.nd===g.d0&&nd8===it.date){render();return}
+  const cand={...it,date:nd8,start:ts(g.ns),dur:g.nd};
+  const apply=s=>mutate(arr=>{const t=arr.find(y=>y.id===g.id);if(t){const old={...t};t.date=nd8;t.start=ts(s);t.dur=g.nd;markChange(t,old)}},`${it.name} 改到 ${nd8!==it.date?mdw(nd8)+' ':''}${ts(s)}–${ts(s+g.nd)}`,()=>{const t=items().find(y=>y.id===g.id);markSent(g.id);return noticeText(t)});
   const hard=clashes(cand,items()).hard;
   if(hard.length)askOverlap(cand,hard,{onOk:()=>apply(g.ns),onFree:f=>apply(f),onCancel:render});else apply(g.ns);
 }
@@ -920,9 +1000,10 @@ $('jump').onchange=e=>{if(e.target.value)go(e.target.value)};
 $('vWeek').onclick=()=>{view='week';render()};$('vMonth').onclick=()=>{view='month';render()};
 $('add').onclick=quickAdd;$('fab').onclick=quickAdd;
 $('week').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)go(b.dataset.d)});
-$('free').addEventListener('click',e=>{const b=e.target.closest('[data-free]');if(b)openAt(+b.dataset.free)});
+$('free').addEventListener('click',e=>{const b=e.target.closest('[data-free]');if(b){const r=b.getBoundingClientRect();openQuick(+b.dataset.free,0,day,r.left+r.width/2,r.top)}});
 $('clearDemo').onclick=()=>{demo=false;fillForm(null);render()};
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&QK){closeQuick();return}
   if(e.key==='Escape'&&swapSrc&&!document.querySelector('.modal.on')){endSwap();return}
   if(document.documentElement.classList.contains('locked'))return;
   if(e.key==='Escape'){['pwDlg','wipeDlg','fbDlg'].forEach(i=>$(i).classList.remove('on'));if(pwResolve){const r=pwResolve;pwResolve=null;r(null)}$('swapDlg').classList.remove('on');$('rollDlg').classList.remove('on');closeModal();$('msgDlg').classList.remove('on');closePanel();return}
