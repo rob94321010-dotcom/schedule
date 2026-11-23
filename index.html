@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>排程表 Beta</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="免註冊、資料只存在您自己裝置上的排程表。排人、排課、排事情都可以。">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1d2b64">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="排程表">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>try{if(localStorage.getItem('bookbook-v1-lock'))document.documentElement.classList.add('locked')}catch(e){}</script>
+<style>
+/* VOICE: calm, practical, a small-shop tool you trust between customers
+   IDEA: the paper appointment book on the counter, pencilled blocks you can slide around
+   PICTURE: the timeline itself (day or week), blocks sized by duration, clashes in red
+   COLOUR and TYPE: deep ink blue band, white page, pencil-yellow blocks, tomato for clashes; Noto Sans TC
+   LAYOUT: band with date + week strip, timeline left, form right; on phones the form is a bottom sheet */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#0f1428);--ink:light-dark(#151a2e,#eef0f7);--mute:light-dark(#5d6378,#a6abc0);
+--band:light-dark(#1d2b64,#18224f);--line:light-dark(#e3e5ec,#262d4a);--panel:light-dark(#f4f5f8,#161c36);
+--blk:light-dark(#ffe27a,#5c4b12);--blkInk:light-dark(#2b2200,#fff3c4);--bad:light-dark(#e5482f,#ff7a63);--badBg:light-dark(#ffe1db,#4a1e18);
+--ok:light-dark(#1f7a4d,#6fd3a0);--warn:light-dark(#a8620a,#f2b45a);--focus:#4d7cff}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;overflow-x:clip;font-variant-numeric:tabular-nums}
+.band{padding:clamp(20px,3vw,40px) max(5vw,16px)}
+header.band{background:var(--band);color:#fff;padding-bottom:18px}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.05;margin:0 0 4px}
+.sub{margin:0;opacity:.85;font-size:15px}
+.wrap{max-width:1240px;margin:0 auto}
+button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.blk:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+header button{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+header button.round{width:44px;padding:0;font-size:20px}
+.nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px}
+.titleWrap{position:relative;margin-inline-end:auto}
+.title{font-size:22px;font-weight:700;border:0!important;padding:0 8px;white-space:nowrap}
+#jump{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;min-height:0}
+@media(max-width:600px){.titleWrap{order:-1;width:100%}.title{font-size:20px;padding:0}}
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;min-width:52px}.seg button.on{background:#fff;color:#1d2b64;font-weight:700}
+.addTop{background:#fff!important;color:#1d2b64!important;border-color:#fff!important;font-weight:700}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:14px}
+.week button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:62px;padding:4px;line-height:1.25;font-size:13px}
+.week button b{font-size:17px}.week button.on{background:#fff;color:#1d2b64;border-color:#fff}
+.week .dot{color:#ff8b77;font-weight:700}.week button.on .dot{color:#e5482f}
+.help{margin-top:12px;max-width:760px}
+.help>summary{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1px solid rgba(255,255,255,.35);border-radius:999px;cursor:pointer;font-size:15px}
+.help summary{list-style:none}.help summary::-webkit-details-marker{display:none}
+.help summary::after{content:"▾";margin-inline-start:8px;font-size:13px}.help[open]>summary::after{content:"▴"}
+.help .hClose{display:none}.help[open] .hOpen{display:none}.help[open] .hClose{display:inline}
+.hBody{margin-top:10px;max-width:760px;background:rgba(255,255,255,.08);border-radius:14px;padding:6px 12px 12px}
+.hHint{margin:6px 0 4px;font-size:13px;opacity:.8}
+.hi{border-bottom:1px solid rgba(255,255,255,.15)}.hi:last-of-type{border-bottom:0}
+.hi>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700;font-size:15px;list-style:none}
+.hi>summary::-webkit-details-marker{display:none}.hi>summary::after{content:"＋";font-weight:400;opacity:.8}.hi[open]>summary::after{content:"－"}
+.hi>div{padding:0 0 12px;font-size:15px;line-height:1.6;opacity:.95}
+.hTail{font-size:13px;opacity:.8;margin:10px 0 8px}
+.hDone{min-height:40px!important;font-size:14px!important}
+.help ol{margin:12px 0 4px;padding-inline-start:22px;font-size:15px}.help li{margin:4px 0}.help p{margin:4px 0 0;font-size:14px;opacity:.85}
+main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
+@media(max-width:899px){main{grid-template-columns:minmax(0,1fr)}}
+.status{font-size:13px;color:var(--mute);margin:0 0 10px}
+.demo{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:14px}
+.tl{position:relative;border-top:1px solid var(--line);user-select:none;-webkit-user-select:none}
+.hr{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
+.hr span{position:absolute;left:0;top:-11px;width:58px;font-size:15px;font-weight:700;color:var(--mute);background:var(--bg);padding-inline-end:6px}
+.half{position:absolute;left:62px;right:0;border-top:1px dashed var(--line);pointer-events:none}
+.blk{position:absolute;border-radius:8px;background:var(--blk);color:var(--blkInk);padding:4px 8px;overflow:hidden;cursor:grab;font-size:14px;line-height:1.3;border:2px solid transparent;box-shadow:0 1px 0 rgba(0,0,0,.08);-webkit-touch-callout:none;touch-action:manipulation}
+.blk b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.blk .t{white-space:nowrap;opacity:.85;overflow:hidden;text-overflow:ellipsis;display:block}
+.blk.rc{background:color-mix(in srgb,var(--ac) 20%,var(--bg));color:var(--ink);box-shadow:inset 4px 0 0 var(--ac);padding-inline-start:10px}
+.blk.bad{background:var(--badBg);border-color:var(--bad);color:var(--ink)}
+.blk.tight{border-color:var(--warn);border-style:dashed}
+.blk.sel{outline:3px solid var(--focus);outline-offset:1px}
+.blk.lift{box-shadow:0 10px 24px rgba(0,0,0,.28);z-index:4;cursor:grabbing}
+.blk.xs,.blk.s{display:flex;align-items:center;gap:8px;padding-block:0}
+.blk.xs b,.blk.s b{flex:0 1 auto}.blk.xs .t,.blk.s .t{flex:none;opacity:.8}
+.blk.xs{font-size:13px;padding-inline:6px}.blk.xs b,.blk.xs .t{font-size:13px}
+.blk.s b{font-size:15px}.blk.s .t{font-size:14px}
+.blk.s .note,.blk.xs .note{display:none}
+.blk.m{padding-top:6px}.blk.m b{font-size:16px}.blk.m .t{font-size:14px}
+.blk.l{padding:8px 10px}.blk.l b{font-size:18px}.blk.l .t{font-size:15px;margin-top:2px}
+.blk.cmp{padding:2px 4px;border-radius:6px;cursor:pointer}.blk.cmp b,.blk.cmp .t{font-size:13px}
+.grip{position:absolute;left:0;right:0;bottom:0;height:12px;cursor:ns-resize;touch-action:none}
+@media(pointer:coarse){.grip{height:24px}.grip::after{width:34px;height:5px;margin-left:-17px;bottom:5px;opacity:.5}}
+.blk.sel .grip::after{opacity:.8}
+.blk.xs .grip::after{display:none}.blk.s .grip::after{bottom:2px;height:3px}.blk.s,.blk.xs{padding-bottom:4px}
+.step{display:flex;align-items:center;gap:8px;margin-top:8px}.step button{width:56px;padding:0;font-size:15px}.step output{font-weight:700;min-width:7em;text-align:center}
+.grip::after{content:"";position:absolute;left:50%;bottom:3px;width:24px;height:3px;margin-left:-12px;border-radius:2px;background:currentColor;opacity:.35}
+.tag{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--bad);border-radius:6px;padding:0 6px;margin-inline-start:4px}
+.ghost{position:absolute;left:64px;right:0;border:2px dashed var(--focus);border-radius:8px;background:color-mix(in srgb,var(--focus) 18%,transparent);pointer-events:none;font-size:14px;padding:4px 8px;font-weight:700}
+.now{position:absolute;left:58px;right:0;border-top:2px solid var(--bad);pointer-events:none;z-index:2}
+.now::before{content:"";position:absolute;left:-5px;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--bad)}
+.wkrow{display:grid;grid-template-columns:44px repeat(7,minmax(0,1fr))}
+.wkhead button{border:0;background:transparent;min-height:52px;padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.25;font-size:13px}
+.wkhead button b{font-size:16px;padding:0 8px;border-radius:999px}.wkhead .today b{background:var(--band);color:#fff}
+.wkbody{border-top:1px solid var(--line);user-select:none;-webkit-user-select:none}
+.wkgut{position:relative}.wkgut span{position:absolute;right:6px;font-size:13px;color:var(--mute);transform:translateY(-50%)}
+.wkcol{position:relative;border-inline-start:1px solid var(--line);background-image:linear-gradient(var(--line) 1px,transparent 1px)}
+.mohead,.mogrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.mohead span{text-align:center;font-size:13px;color:var(--mute);padding:6px 0}
+.mogrid{border-top:1px solid var(--line);border-inline-start:1px solid var(--line)}
+.mocell{min-height:104px;border-inline-end:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px;cursor:pointer;display:flex;flex-direction:column;gap:2px;background:var(--bg);text-align:start;border-radius:0;font:inherit;color:inherit;border-top:0;border-inline-start:0}
+.mocell{container-type:inline-size}
+@container (max-width:110px){.ev .et{display:none}}
+.ev .et{opacity:.75;margin-inline-end:3px}
+.mocell:hover{background:var(--panel)}
+.mocell.other{color:var(--mute);background:color-mix(in srgb,var(--panel) 60%,var(--bg))}
+.mocell .dn{font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:space-between;gap:4px}
+.mocell.today .dn b{background:var(--band);color:#fff;border-radius:999px;padding:0 7px}
+.mocell.cur{box-shadow:inset 0 0 0 2px var(--focus)}
+.mocell .ev{font-size:13px;line-height:1.35;background:color-mix(in srgb,var(--ac,#d9a400) 18%,var(--bg));box-shadow:inset 3px 0 0 var(--ac,#d9a400);color:var(--ink);border-radius:4px;padding:2px 5px 2px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mocell .ev.bad{background:var(--badBg);color:var(--ink);box-shadow:inset 3px 0 0 var(--bad)}
+.mocell .more{font-size:13px;color:var(--ink);background:var(--panel);border-radius:4px;text-align:center;padding:1px 0}.mocell .cnt{font-size:13px;color:var(--mute)}
+.mocell.past:not(.other){background:color-mix(in srgb,var(--panel) 55%,var(--bg))}
+.mocell .dn b{font-weight:500;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center}
+.ev b{font-weight:700}.rec{opacity:.7;margin-inline-start:3px;font-size:12px}
+.mocell .cnt{display:none}
+.cnt i{width:7px;height:7px;border-radius:50%;background:var(--ac,#d9a400)}.cnt i.bad{background:var(--bad)}.cnt em{font-style:normal;font-size:12px;color:var(--mute);line-height:7px}
+.mocell .bd{color:var(--bad);font-size:13px;font-weight:700}
+@media(max-width:600px){.addTop{display:none!important}.mocell{min-height:64px;padding:3px}.mocell .ev,.mocell .more{display:none}.mocell .cnt{display:flex;flex-wrap:wrap;gap:3px;padding-inline-start:4px}.mocell .dn{font-size:14px}}
+.wkcol.today{background-color:color-mix(in srgb,var(--focus) 6%,transparent)}
+.below{margin-top:18px}
+.below h3{font-size:16px;margin:0 0 6px}
+.free{display:flex;flex-wrap:wrap;gap:6px}.free button{min-height:40px;font-size:14px;border-style:dashed}
+.issues{margin:10px 0 0;padding-inline-start:20px;font-size:15px}.issues li{margin:4px 0}
+.panel{background:var(--panel);border-radius:16px;padding:20px}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.panel h2{font-size:22px;margin:0;line-height:1.2}
+.sheetX{display:none;width:44px;padding:0;font-size:20px;background:transparent;border-color:transparent}
+label{display:block;font-size:14px;color:var(--mute);margin:12px 0 4px}
+input,select,textarea{font:inherit;font-size:16px;width:100%;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+textarea{min-height:70px;resize:vertical}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{min-height:40px;padding:0 12px;font-size:14px;border-radius:999px}
+.chips button.on{background:var(--band);color:#fff;border-color:var(--band)}
+.check{margin-top:16px;border-radius:10px;padding:10px 12px;font-size:15px;background:var(--bg);border:1px solid var(--line)}
+.check.ok{border-color:var(--ok)}.check.ok b{color:var(--ok)}
+.check.bad{border-color:var(--bad)}.check.bad b{color:var(--bad)}
+.check.warn{border-color:var(--warn)}.check.warn b{color:var(--warn)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.primary{background:var(--band);color:#fff;border-color:var(--band);font-weight:700}
+.primary.danger{background:var(--bad);border-color:var(--bad)}
+.ghostBtn{background:transparent}
+.del{color:var(--bad);background:transparent;border-color:transparent;padding:0 8px}
+.extra{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding-top:12px;border-top:1px solid var(--line)}
+.extra button{min-height:40px;font-size:14px}
+details.more{margin-top:12px}.more summary{cursor:pointer;font-size:14px;color:var(--mute);min-height:36px;display:flex;align-items:center}
+details.set{margin-top:24px;border-top:1px solid var(--line);padding-top:12px}
+details.set summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;align-items:center}
+.hint{font-size:13px;color:var(--mute);margin:6px 0 0}
+.fab{display:none;position:fixed;right:18px;bottom:20px;width:60px;height:60px;border-radius:50%;background:var(--band);color:#fff;border:0;font-size:30px;box-shadow:0 8px 22px rgba(0,0,0,.3);z-index:6}
+.scrim{display:none;position:fixed;inset:0;background:rgba(10,14,30,.45);z-index:7}
+.scrim.on{display:block}
+@media(max-width:899px){
+  .panel{position:fixed;left:0;right:0;bottom:0;z-index:8;max-height:90vh;overflow:auto;border-radius:20px 20px 0 0;transform:translateY(105%);visibility:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+  .panel.open{transform:none;visibility:visible}
+  .sheetX,.fab{display:inline-flex;align-items:center;justify-content:center}
+}
+@media(min-width:900px){.panel{position:sticky;top:16px}}
+@media(max-width:600px){.hr span{font-size:14px}}
+.modal{position:fixed;inset:0;background:rgba(10,14,30,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.on{display:flex}
+.dlg{background:var(--bg);color:var(--ink);border-radius:16px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.dlg.warnTop{border-top:6px solid var(--bad)}
+.dlg h3{margin:0 0 8px;font-size:22px;line-height:1.2}.dlg.warnTop h3{color:var(--bad)}
+.dlg ul{margin:8px 0 0;padding-inline-start:20px}
+.dlg .acts{flex-direction:column}.dlg .acts button{width:100%}
+.tip{position:fixed;z-index:12;max-width:280px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.45;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:none;display:none}
+.tip.on{display:block}.tip b{font-size:15px}.tip .tb{color:var(--bad);font-weight:700}.tip .tm{color:var(--mute)}
+.swapBar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--band);color:#fff;border-radius:12px;padding:8px 8px 8px 14px;margin-bottom:10px;font-size:15px}
+.swapBar span{flex:1 1 200px}.swapBar button{background:transparent;color:#fff;border-color:rgba(255,255,255,.5);min-height:40px}
+.swOk{outline:2px solid var(--ok);outline-offset:1px}
+.swBad{outline:2px dashed var(--bad);outline-offset:1px;background-image:repeating-linear-gradient(45deg,color-mix(in srgb,var(--bad) 22%,transparent) 0 6px,transparent 6px 12px)!important}
+.blk.swBad::after{content:"換了會撞";position:absolute;right:4px;top:3px;font-size:12px;font-weight:700;background:var(--bad);color:#fff;border-radius:6px;padding:0 5px;line-height:18px}
+.blk.cmp.swBad::after,.blk.xs.swBad::after{content:"⚠";padding:0 3px}
+.swLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;opacity:.9;flex-basis:100%}
+.swLegend i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-inline-end:4px;vertical-align:middle}
+.blk.swapSrc{outline:3px dashed var(--focus);outline-offset:2px}
+.swaping .blk:not(.swapSrc),.swaping .ev{cursor:copy}
+.swl{margin:6px 0;padding:10px 12px;background:var(--panel);border-radius:10px}.swl b{font-size:16px}
+.mocell .ev{cursor:pointer}
+.rollList{list-style:none;padding:0;margin:12px 0 4px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.rollList li{padding:7px 12px;border-bottom:1px solid var(--line);font-size:15px}.rollList li:last-child{border-bottom:0}
+.rollList li span{font-size:14px}.rollList .rb{background:var(--badBg)}.rollList .rb span{color:var(--bad);font-weight:700}.rollList .rk{color:var(--ok);font-weight:700}
+button:disabled{opacity:.5;cursor:not-allowed}
+.tagSug{margin-top:6px}.tagSug button{min-height:34px;font-size:13px;padding:0 10px}.tagSug button.on{background:var(--ac,var(--band));border-color:var(--ac,var(--band));color:#fff}
+.emptyHint{margin:0 0 12px;font-size:15px;color:var(--mute)}
+.linkBtn{min-height:36px;padding:0 12px;border-radius:999px;font-size:14px;color:var(--ink);border-color:var(--line);background:var(--panel)}
+.demoBtn{min-height:36px;padding:0 12px;border-radius:999px;font-size:14px;background:#fff;color:#1d2b64;border-color:#fff;font-weight:700}
+.hrow{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-top:12px}.hrow .help{margin-top:0}.help[open]{flex-basis:100%;order:2}
+.betaTag{font-size:14px;vertical-align:middle;background:#ffd75e;color:#1d2b64;border-radius:999px;padding:2px 10px;font-weight:700}
+.privacy{margin:8px 0 0;font-size:14px;opacity:.9;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fbBtn{min-height:40px!important;font-size:15px!important;padding:0 14px!important;border-radius:999px!important}
+.sh{margin:22px 0 6px;font-size:16px}
+@media(max-width:600px){header .sub{display:none}.privacy{margin-top:4px}}.plist{padding-inline-start:18px}.plist li{margin:3px 0}
+.err{color:var(--bad);font-size:14px;margin:6px 0 0;min-height:1em}
+.banner{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-inline-start:4px solid var(--warn);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:15px}
+.banner span{flex:1 1 220px}.banner button{min-height:38px;font-size:14px}
+.banner.info{border-inline-start-color:var(--focus)}
+.lock{position:fixed;inset:0;z-index:60;background:var(--band);color:#fff;display:none;align-items:center;justify-content:center;padding:20px}
+.locked .lock{display:flex}.locked header,.locked main,.locked .fab{visibility:hidden}
+.lockBox{width:100%;max-width:320px;text-align:center}.lockBox h2{font-size:30px;margin:0 0 6px}
+.lockBox input{text-align:center;font-size:28px;letter-spacing:10px;margin-top:10px}
+.lockBox .acts{justify-content:center}.lockBox .ghostBtn{color:#fff;border-color:rgba(255,255,255,.4)}.lockBox .err{color:#ffb4a6}
+.lockBox .primary{background:#fff;color:#1d2b64;border-color:#fff}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;display:none;gap:12px;align-items:center;z-index:11;max-width:92vw;font-size:15px}
+.toast button{min-height:36px;background:transparent;color:inherit;border-color:currentColor}
+@media(prefers-reduced-motion:no-preference){.panel{transition:transform .25s ease,visibility .25s}.blk:not(.lift){transition:box-shadow .15s}}
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+  <h1>排程表 <span class="betaTag">Beta</span></h1>
+  <p class="sub">排人、排課、排事情都可以。點一下就排，拖一下就改，撞到會先提醒。</p>
+  <p class="privacy">🔒 資料只存在您自己的裝置，其他人看不到。</p>
+  <div class="hrow">
+  <details class="help" id="help">
+    <summary><span class="hOpen">📖 怎麼用？</span><span class="hClose">收起說明</span></summary>
+    <div class="hBody">
+      <p class="hHint">點標題看說明，再點一次收起。</p>
+      <details class="hi"><summary>先看示範</summary><div><button type="button" class="demoBtn" data-demo>載入示範資料</button> 看看排人、排課、撞期長什麼樣子。示範資料不會存起來，按「結束示範」就消失，也不會影響你排好的內容。</div></details>
+      <details class="hi"><summary>新增</summary><div>按「＋ 新增」，或點時間軸的空白處。電腦上可以直接在空白處往下拖出一段時間。</div></details>
+      <details class="hi"><summary>填三樣</summary><div>標題、幾點、多久。時長不在按鈕裡就按「其他」自己填分鐘。打過的標題會自動帶入上次的時長和誰／哪裡。</div></details>
+      <details class="hi"><summary>改時間</summary><div>直接拖動那一格；用手指按住底部的小橫條上下拉，就能拉長或縮短（手機上直接拉）。要搬到別的時段，先按住那格半秒等它浮起來再拖。表單裡也可以按 −5／+5 微調。</div></details>
+      <details class="hi"><summary>撞到會警告</summary><div>重疊時會跳出提醒，可以一鍵改到最近的空檔，或確認後照排。</div></details>
+      <details class="hi"><summary>看一週或一個月</summary><div>上方切換「日／週／月」。月曆上點某一天就會打開那天。手機上左右滑可以換頁。</div></details>
+      <details class="hi"><summary>點一格</summary><div>可以修改或刪除，另外還有：<br>・<b>↻ 展延該時段（一個月～六個月）</b>：同一時段往後延，固定的課、班、會議或客人，一次延一個月到六個月，撞到別人的那週會先跳過。新增時也可以在「頻率」直接選。<br>・<b>💬 異動通知</b>：時間改過（拖曳、修改、交換）之後，下方會出現「💬 通知對方」，按一下就複製好「原本 → 改為」的通知，貼到 LINE 傳給同學或同事。刪除會產生取消通知，展延會列出所有日期。之後點那一格也能再複製。<br>・<b>🔔 加到手機行事曆</b>：下載一個行事曆檔，打開就加進手機內建的行事曆，開始前 30 分鐘手機會跳通知提醒你。</div></details>
+      <details class="hi"><summary>誰／哪裡</summary><div>填這件事牽涉到的人或地方，可以填好幾個，用逗號或「、」分開。同一時間<b>有同一個人或同一個地方</b>才算撞；都沒填就當作只有一個位子。<br>・排人：標題「早班」，誰填「Ben」→ Ben 和 Alice 同時上班不算撞。<br>・排課：標題「鋼琴課」，填「王老師、琴房A」→ 老師或教室被排兩堂就警告。<br>・排事情：標題「週會」，填「Ben、Alice」→ 檢查兩人當時有沒有空。</div></details>
+      <details class="hi"><summary>跳到某天</summary><div>點上方的日期標題（▾）可以直接選日期。一週從週日或週一開始，可在「設定與備份」改。</div></details>
+      <details class="hi"><summary>交換時段</summary><div>點 Ben 那格 →「⇄ 與別人交換時段」→ 再點 Alice 那格（可以先換到別天、別週）→ 確認。兩人的日期和時間會對調。</div></details>
+      <details class="hi"><summary>密碼鎖</summary><div>在「設定與備份」可以設定 4～8 位數字密碼，離開超過 3 分鐘會自動上鎖。</div></details>
+      <details class="hi"><summary>改錯了</summary><div>每次變更後 6 秒內都可以按「復原」。</div></details>
+      <details class="hi"><summary>記得備份</summary><div>資料只存在這台裝置。偶爾到頁面最下面「設定與備份」按「匯出加密備份」，把檔案存到雲端硬碟或傳給自己；換手機或電腦時，在新裝置按「匯入備份」就能還原。手機和電腦的資料不會互通，要靠備份檔搬過去。</div></details>
+      <p class="hTail">紅色＝重疊。電腦快捷鍵：N 新增、T 今天、← → 換頁、D 日、W 週、M 月。</p>
+      <button type="button" class="hDone" id="helpClose">收起說明 ▴</button>
+    </div>
+  </details><button type="button" id="fbOpen" class="fbBtn">💬 意見回饋</button>
+  </div>
+  <div class="nav">
+    <button id="today">今天</button>
+    <button class="round" id="prev" aria-label="往前">‹</button>
+    <button class="round" id="next" aria-label="往後">›</button>
+    <span class="titleWrap"><button class="title" id="titleBtn" aria-label="選擇日期"><span id="dayLabel"></span> <span aria-hidden="true">▾</span></button><input type="date" id="jump" tabindex="-1" aria-hidden="true"></span>
+    <span class="seg" role="group" aria-label="檢視"><button id="vDay" class="on">日</button><button id="vWeek">週</button><button id="vMonth">月</button></span>
+    <button id="add" class="addTop">＋ 新增</button>
+  </div>
+  <div class="week" id="week"></div>
+</div></header>
+
+<div class="band"><main class="wrap">
+  <section>
+    <div id="banners"></div>
+    <p class="status" id="status" hidden></p>
+    <div class="demo" id="demo" hidden><span>👀 <b>示範模式</b>：Ben 和 Alice 同時上早班不算撞；王老師同時被排兩堂課會標紅。示範資料不會存起來，可以隨意拖拉試試。</span><button id="clearDemo" class="ghostBtn">結束示範</button></div>
+    <p class="emptyHint" id="emptyHint" hidden>點時間軸的空白處或「＋」就能新增，或先 <button type="button" data-demo class="linkBtn">看示範</button></p>
+    <div class="swapBar" id="swapBar" hidden><span id="swapTxt"></span><button type="button" id="swapCancel">取消</button><span class="swLegend"><span><i style="outline:2px solid #6fd3a0"></i>可以直接換</span><span><i style="outline:2px dashed #ff7a63;background:repeating-linear-gradient(45deg,#ff7a6366 0 3px,transparent 3px 6px)"></i>換了會撞到別人</span></span></div>
+    <div id="board"></div>
+    <div class="below" id="below">
+      <h3>這天的空檔</h3>
+      <div class="free" id="free"></div>
+      <ul class="issues" id="issues"></ul>
+    </div>
+    <details class="set">
+      <summary>設定與備份</summary>
+      <div class="row">
+        <div><label for="sOpen">時間軸從</label><input type="time" id="sOpen" step="900"></div>
+        <div><label for="sClose">到</label><input type="time" id="sClose" step="900"></div>
+      </div>
+      <label for="sBuf">兩筆之間至少間隔（分鐘）</label>
+      <input type="number" id="sBuf" min="0" step="5" inputmode="numeric">
+      <label for="sWk">一週從哪天開始</label>
+      <select id="sWk"><option value="0">週日</option><option value="1">週一</option></select>
+      <p class="hint">設 0 就只檢查重疊。設 10，間隔不到 10 分鐘會用虛線提醒。</p>
+      <h4 class="sh">🔒 密碼鎖</h4>
+      <p class="hint" style="margin-top:0">打開排程表時要先輸入密碼，防止手機借給別人時被翻看。</p>
+      <p class="hint" id="lockState"></p>
+      <div class="acts"><button type="button" id="lockSet">設定密碼鎖</button><button type="button" id="lockOff" class="ghostBtn" hidden>關閉密碼鎖</button></div>
+      <h4 class="sh">💾 備份與換裝置</h4>
+      <p class="hint" style="margin-top:0">資料只在這台裝置裡。匯出時設一組密碼，會產生一個加密的備份檔，可以存到雲端硬碟或用 LINE 傳給自己。換手機或電腦時，在新的裝置按「匯入備份」並輸入密碼就能還原。沒有密碼的人打開只會看到亂碼。</p>
+      <p class="hint" id="lastBk"></p>
+      <div class="acts"><button type="button" id="exp" class="primary">匯出加密備份</button><button type="button" id="impBtn">匯入備份</button></div>
+      <input type="file" id="impFile" accept=".schedbak,.json,application/json,application/octet-stream" hidden>
+      <details class="more"><summary>從舊版貼上備份文字</summary>
+        <textarea id="io" placeholder="把舊版「複製備份」的文字貼在這裡"></textarea>
+        <div class="acts"><button type="button" id="import">用這份備份還原</button></div>
+      </details>
+      <h4 class="sh">🧹 清除資料</h4>
+      <p class="hint" style="margin-top:0">換裝置或不用了，可以把這台裝置上的排程、設定和密碼鎖全部清掉。清掉之後無法復原，建議先匯出備份。</p>
+      <div class="acts"><button type="button" id="wipe" class="del" style="padding:0 16px;border:1px solid var(--bad)">清除這台裝置上的全部資料</button></div>
+      <h4 class="sh">隱私說明</h4>
+      <ul class="hint plist">
+        <li>所有排程只存在這台裝置的瀏覽器裡，不會上傳到任何伺服器。手機、平板、電腦都一樣。</li>
+        <li>手機和電腦的資料各自獨立、不會互通；想換到另一台裝置使用，請用備份檔搬過去。</li>
+        <li>網站只負責把這個工具的畫面送到你的裝置，收不到、也看不到任何人的資料。</li>
+        <li>沒有帳號、沒有追蹤、沒有廣告。</li>
+        <li>密碼鎖是防止別人翻看手機；備份檔則是真正加密的。</li>
+        <li>清除瀏覽器資料、或 iPhone 上很久沒打開，資料可能會不見，請定期匯出備份。</li>
+      </ul>
+      <p class="hint">排程表 Beta 0.9（2026-11-23）</p>
+    </details>
+  </section>
+
+  <aside class="panel" id="panel" aria-label="新增或編輯">
+    <div class="ph"><h2 id="fTitle">新增</h2><button type="button" class="sheetX" id="closeSheet" aria-label="關閉">✕</button></div>
+    <form id="form" autocomplete="off">
+      <label for="fName">標題</label>
+      <input id="fName" list="nameList" required placeholder="例如：早班、鋼琴課、週會、王先生剪髮">
+      <datalist id="nameList"></datalist>
+      <p class="hint" id="nameHint" hidden></p>
+      <div class="row">
+        <div><label for="fDate">哪天</label><input type="date" id="fDate" required></div>
+        <div><label for="fStart">幾點</label><input type="time" id="fStart" step="60" required></div>
+      </div>
+      <label>多久</label>
+      <div class="chips" id="chips"></div>
+      <div class="step"><button type="button" id="durMinus" aria-label="減 5 分鐘">−5</button><output id="durOut"></output><button type="button" id="durPlus" aria-label="加 5 分鐘">+5</button></div>
+      <div id="customDur" style="margin-top:8px;display:none;gap:8px;align-items:center"><input type="number" id="fDur" min="1" step="1" inputmode="numeric" style="width:120px" aria-label="自訂分鐘數"><span>分鐘</span></div>
+      <label for="fRes">誰／哪裡（選填，可填多個）</label>
+      <input id="fRes" placeholder="例如：Ben　或　王老師、琴房A、小明">
+      <div class="chips tagSug" id="tagSug"></div>
+      <label for="fRep">頻率</label>
+      <select id="fRep"><option value="1:7">只排這次</option><option value="4:7">每週，共 4 次（約一個月）</option><option value="8:7">每週，共 8 次（約兩個月）</option><option value="13:7">每週，共 13 次（約三個月）</option><option value="26:7">每週，共 26 次（約六個月）</option><option value="4:14">隔週，共 4 次</option><option value="6:14">隔週，共 6 次（約三個月）</option><option value="13:14">隔週，共 13 次（約六個月）</option></select>
+      <div class="check" id="check"></div>
+      <details class="more">
+        <summary>更多：電話、備註</summary>
+        <label for="fPhone">電話</label>
+        <input id="fPhone" inputmode="tel">
+        <label for="fNote">備註</label>
+        <textarea id="fNote" placeholder="例如：染髮、練習曲第 3 首"></textarea>
+      </details>
+      <div class="acts">
+        <button type="submit" class="primary" id="save">儲存</button>
+        <button type="button" class="ghostBtn" id="reset">取消</button>
+        <button type="button" class="del" id="delete" hidden>刪除</button>
+        <button type="button" class="del" id="deleteSeries" hidden>刪除之後每週這堂</button>
+      </div>
+      <div class="extra" id="extra" hidden>
+        <button type="button" id="swap">⇄ 與別人交換時段</button>
+        <button type="button" id="rebook">↻ 展延該時段（一個月～六個月）</button>
+        <button type="button" id="msg">💬 複製通知訊息</button>
+        <button type="button" id="ics" hidden>🔔 加到手機行事曆（提醒自己）</button>
+      </div>
+    </form>
+  </aside>
+</main></div>
+
+<div class="lock" id="lock">
+  <div class="lockBox">
+    <h2>排程表</h2>
+    <p>請輸入密碼</p>
+    <form id="lockForm" autocomplete="off"><input id="lockPin" type="password" inputmode="numeric" autocomplete="off" aria-label="密碼">
+    <p class="err" id="lockErr"></p>
+    <div class="acts"><button type="submit" class="primary" id="lockGo">解鎖</button><button type="button" class="ghostBtn" id="lockForgot">忘記密碼</button></div></form>
+  </div>
+</div>
+<div class="modal" id="pwDlg" role="dialog" aria-modal="true" aria-labelledby="pwTitle"><div class="dlg">
+  <h3 id="pwTitle"></h3>
+  <p class="hint" id="pwDesc" style="margin-top:0"></p>
+  <form id="pwForm" autocomplete="off">
+    <label for="pw1" id="pw1L">密碼</label><input id="pw1" type="password" autocomplete="new-password">
+    <div id="pw2W"><label for="pw2">再輸入一次</label><input id="pw2" type="password" autocomplete="new-password"></div>
+    <p class="err" id="pwErr"></p>
+    <div class="acts"><button type="submit" class="primary" id="pwOk">確定</button><button type="button" class="ghostBtn" id="pwNo">取消</button></div>
+  </form>
+</div></div>
+<div class="modal" id="wipeDlg" role="dialog" aria-modal="true" aria-labelledby="wipeTitle"><div class="dlg warnTop">
+  <h3 id="wipeTitle">清除全部資料？</h3>
+  <p style="margin:0">這台裝置上的所有排程、設定和密碼鎖都會刪除，<b>無法復原</b>。如果還需要，請先匯出備份。</p>
+  <label for="wipeTxt">請輸入「清除」兩個字確認</label><input id="wipeTxt" autocomplete="off">
+  <div class="acts"><button type="button" class="primary danger" id="wipeOk" disabled>清除全部資料</button><button type="button" class="ghostBtn" id="wipeNo">取消</button></div>
+</div></div>
+<div class="modal" id="fbDlg" role="dialog" aria-modal="true" aria-labelledby="fbTitle"><div class="dlg">
+  <h3 id="fbTitle">意見回饋</h3>
+  <p class="hint" style="margin-top:0">謝謝試用！複製下面的問卷，填好後用 LINE 傳給分享這個連結給你的朋友。</p>
+  <textarea id="fbText" style="min-height:190px"></textarea>
+  <div class="acts"><button type="button" class="primary" id="fbCopy">複製</button><button type="button" class="ghostBtn" id="fbNo">關閉</button></div>
+</div></div>
+<button class="fab" id="fab" aria-label="新增">＋</button>
+<div class="scrim" id="scrim"></div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="dlg warnTop">
+  <h3 id="mTitle">這個時段會重疊</h3>
+  <div id="mBody"></div>
+  <div class="acts">
+    <button type="button" id="mFree" class="primary">改到最近的空檔</button>
+    <button type="button" id="mOk" class="primary danger">我知道，還是要排</button>
+    <button type="button" id="mCancel" class="ghostBtn">取消</button>
+  </div>
+</div></div>
+
+<div class="modal" id="swapDlg" role="dialog" aria-modal="true" aria-labelledby="swTitle"><div class="dlg">
+  <h3 id="swTitle">交換這兩個時段？</h3>
+  <div id="swBody"></div>
+  <div class="acts"><button type="button" id="swOk" class="primary">確定交換</button><button type="button" id="swNo" class="ghostBtn">取消</button></div>
+</div></div>
+<div class="modal" id="rollDlg" role="dialog" aria-modal="true" aria-labelledby="rollTitle"><div class="dlg">
+  <h3 id="rollTitle">展延該時段</h3>
+  <p style="margin:0 0 4px;font-weight:700" id="rollWho"></p>
+  <p class="hint" id="rollFrom" style="margin:0"></p>
+  <label>展延多久</label>
+  <div class="chips" id="rollN"><button type="button" data-n="1">再 1 次</button><button type="button" data-n="4">1 個月</button><button type="button" data-n="8">2 個月</button><button type="button" data-n="13">3 個月</button><button type="button" data-n="26">6 個月</button></div>
+  <label>多久一次</label>
+  <div class="chips" id="rollIv"><button type="button" data-iv="7">每週</button><button type="button" data-iv="14">隔週</button></div>
+  <ul class="rollList" id="rollList"></ul>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="rollSkip" style="width:20px;min-height:20px"> 撞到別人的那週先跳過</label>
+  <div class="acts"><button type="button" id="rollOk" class="primary">排入</button><button type="button" id="rollNo" class="ghostBtn">取消</button></div>
+</div></div>
+<div class="modal" id="msgDlg" role="dialog" aria-modal="true" aria-labelledby="msgTitle"><div class="dlg">
+  <h3 id="msgTitle">通知訊息</h3>
+  <p class="hint" style="margin-top:0">長按或全選後複製，貼到 LINE 給對方。</p>
+  <textarea id="msgText" readonly style="min-height:110px"></textarea>
+  <div class="acts"><button type="button" id="msgClose" class="primary">好</button></div>
+</div></div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="notify">💬 通知對方</button><button id="undo">復原</button></div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const PX=1.15, PXW=0.8, LS='bookbook-v1', DURS=[30,45,60,90,120];
+const pad=n=>String(n).padStart(2,'0');
+const ds=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ds(d)};
+const tm=s=>{const[h,m]=(s||'0:0').split(':').map(Number);return h*60+m};
+const ts=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const WD=['日','一','二','三','四','五','六'];
+const md=s=>{const d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()};
+const mdw=s=>md(s)+'（週'+WD[pd(s).getDay()]+'）';
+const durLabel=m=>m<60?m+' 分':m%60?(m%60===30?Math.floor(m/60)+' 小時半':Math.floor(m/60)+' 小時 '+m%60+' 分'):m/60+' 小時';
+const narrow=()=>innerWidth<900;
+
+const T=ds(new Date()), T1=addDays(T,1);
+const DEMO=[
+  {id:'d1',name:'早班',res:'Ben',date:T,start:'08:00',dur:240,note:'櫃台'},
+  {id:'d2',name:'早班',res:'Alice',date:T,start:'08:00',dur:240,note:'倉庫'},
+  {id:'d3',name:'鋼琴課',res:'王老師、琴房A',date:T,start:'13:00',dur:60,note:'小明'},
+  {id:'d4',name:'小提琴課',res:'王老師、琴房B',date:T,start:'13:30',dur:60,note:'小華'},
+  {id:'d5',name:'週會',res:'Ben、Alice',date:T,start:'15:00',dur:60,note:''},
+  {id:'d6',name:'王先生剪髮',date:T,start:'17:00',dur:40,note:''},
+  {id:'d7',name:'晚班',res:'Ben',date:T1,start:'16:00',dur:360,note:''},
+  {id:'d8',name:'鋼琴課',res:'王老師、琴房A',date:T1,start:'13:00',dur:60,note:'小明'}
+].map(x=>({phone:'',series:'',res:'',...x}));
+const DEMO0=JSON.stringify(DEMO);
+
+let store={items:[],settings:{open:'08:00',close:'22:00',buffer:0,v2:1}};
+let demo=false, day=T, view='day', editId=null, durSel=60, ref=null, prefilledFor='';
+
+const tagsOf=x=>[...new Set(String(x.res||'').split(/[,，、;；\/]+/).map(t=>t.trim()).filter(Boolean))];
+const normTags=r=>tagsOf({res:r}).join('、');
+function normalize(d){
+  const s=d.settings||{};
+  const o={open:s.open||'08:00',close:s.close||'22:00',buffer:Math.max(0,+s.buffer||0),wk:s.wk===1?1:0,v2:1};
+  if(!s.v2&&o.open==='10:00'&&o.close==='20:00'){o.open='08:00';o.close='22:00'}
+  return {items:(d.items||[]).filter(x=>x&&x.date&&x.start).map(x=>({id:String(x.id||uid()),name:String(x.name||''),phone:String(x.phone||''),date:String(x.date),start:String(x.start),dur:Math.max(1,Math.round(+x.dur)||30),svc:String(x.svc||''),note:String(x.note||''),series:x.series?String(x.series):'',prev:x.prev&&x.prev.date?{date:String(x.prev.date),start:String(x.prev.start),dur:+x.prev.dur||30,sent:!!x.prev.sent}:undefined,res:normTags(x.res)})),settings:o};
+}
+try{const r=localStorage.getItem(LS);if(r){const d=JSON.parse(r);if(d&&Array.isArray(d.items))store=normalize(d)}}catch(e){}
+demo=false;
+const items=()=>demo?DEMO:store.items;
+const S=()=>store.settings;
+
+/* ---------- saving (this phone only) ---------- */
+function persist(){
+  if(demo)return;
+  try{localStorage.setItem(LS,JSON.stringify(store))}catch(e){toast('手機儲存空間不足，請先匯出備份')}
+  if(store.items.length){const m=meta();if(!m.first){m.first=Date.now();saveMeta(m)}}
+}
+function setStatus(t){$('status').textContent=t}
+function meta(){try{return JSON.parse(localStorage.getItem(LS+'-meta')||'{}')}catch(e){return{}}}
+function saveMeta(m){try{localStorage.setItem(LS+'-meta',JSON.stringify(m))}catch(e){}}
+/* files: share sheet on phones, download elsewhere, Claude downloads inside claude.ai */
+let downloads={save:async({filename,data,type})=>{
+  const blob=new Blob([data],{type:type||'application/octet-stream'});
+  try{if(window.claude&&claude.use){const dl=await claude.use('downloads');if(dl){await dl.save({filename,data});return}}}catch(e){}
+  try{const f=new File([blob],filename,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:filename});return}}catch(e){if(e&&e.name==='AbortError')throw e}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+}};
+
+/* ---------- changes with undo ---------- */
+function mutate(fn,msg,notify){
+  const arr=items(),snap=JSON.stringify(arr);
+  fn(arr);persist();render();
+  toast(msg,()=>{arr.splice(0,arr.length,...JSON.parse(snap));persist();render()},notify);
+}
+/* remember the original time until a notice is sent */
+function markChange(t,old){
+  if(!(t.prev&&!t.prev.sent))t.prev={date:old.date,start:old.start,dur:+old.dur,sent:false};
+  if(t.prev.date===t.date&&t.prev.start===t.start&&+t.prev.dur===+t.dur)delete t.prev;
+}
+function leaveDemo(){if(demo)demo=false}
+function startDemo(){DEMO.splice(0,DEMO.length,...JSON.parse(DEMO0));demo=true;day=T;view='day';$('help').open=false;fillForm(null);closePanel();render();$('demo').scrollIntoView({block:'center'})}
+document.addEventListener('click',e=>{if(e.target.closest('[data-demo]')){e.preventDefault();startDemo()}});
+
+/* ---------- conflict logic ---------- */
+const span=x=>[tm(x.start),tm(x.start)+(+x.dur)];
+const sharedTags=(x,y)=>{const b=tagsOf(y);return tagsOf(x).filter(t=>b.includes(t))};
+const sameLane=(x,y)=>{const a=tagsOf(x),b=tagsOf(y);return !a.length||!b.length||a.some(t=>b.includes(t))};
+function clashes(x,list){
+  const[a,b]=span(x),buf=S().buffer,hard=[],soft=[];
+  for(const y of list){
+    if(y.id===x.id||y.date!==x.date||!sameLane(x,y))continue;
+    const[c,d]=span(y);
+    if(a<d&&c<b)hard.push(y);
+    else if(buf&&((c>=b&&c-b<buf)||(a>=d&&a-d<buf)))soft.push(y);
+  }
+  return {hard,soft};
+}
+function freeSlot(x,list){
+  const open=tm(S().open),close=tm(S().close),dur=+x.dur,buf=S().buffer;
+  const same=list.filter(y=>y.date===x.date&&y.id!==x.id&&sameLane(x,y)).map(span);
+  const fits=s=>s>=open&&s+dur<=close&&same.every(([c,d])=>s+dur+buf<=c||s>=d+buf);
+  const from=Math.max(open,Math.ceil(tm(x.start)/5)*5);
+  for(let s=from;s+dur<=close;s+=5)if(fits(s))return s;
+  for(let s=open;s<from;s+=5)if(fits(s))return s;
+  return null;
+}
+function gaps(date){
+  const open=tm(S().open),close=tm(S().close);
+  const sp=items().filter(y=>y.date===date).map(span).sort((a,b)=>a[0]-b[0]);
+  const out=[];let cur=open;
+  for(const[a,b]of sp){if(a-cur>=15)out.push([cur,Math.min(a,close)]);cur=Math.max(cur,b)}
+  if(close-cur>=15)out.push([cur,close]);
+  return out.filter(([a,b])=>b-a>=15);
+}
+
+/* ---------- layout ---------- */
+function lanesOf(list){
+  const lanes={};let group=[],gEnd=-1;
+  const done=()=>{const ends=[];for(const x of group){const[a,b]=span(x);let l=ends.findIndex(e=>e<=a);if(l<0){l=ends.length;ends.push(0)}ends[l]=b;lanes[x.id]=[l]}for(const x of group)lanes[x.id].push(ends.length);group=[]};
+  for(const x of list){const[a,b]=span(x);if(a>=gEnd&&group.length)done();group.push(x);gEnd=Math.max(gEnd,b)}
+  if(group.length)done();
+  return lanes;
+}
+function rangeFor(list){
+  let open=tm(S().open),close=tm(S().close);
+  for(const x of list){const[a,b]=span(x);open=Math.min(open,a);close=Math.max(close,b)}
+  open=Math.floor(open/60)*60;close=Math.ceil(close/60)*60;if(close<=open)close=open+60;
+  return [open,close];
+}
+const sizeCls=h=>h<34?'xs':h<58?'s':h<110?'m':'l';
+const ACS=['#2f6fde','#2a9d8f','#7b5ea7','#c77d10','#c2417a','#3d8b37','#0f7c99','#8a6d3b'];
+function allTags(){return [...new Set(items().flatMap(tagsOf))]}
+function tagColor(t){const o=allTags();return ACS[Math.max(0,o.indexOf(t))%ACS.length]}
+function resColor(r){const t=tagsOf({res:r})[0];return t?tagColor(t):''}
+function blockHTML(x,list,top,ht,left,width,cmp){
+  const c=clashes(x,list),b=span(x)[1];
+  const cls=c.hard.length?'bad':c.soft.length?'tight':'';
+  const ac=resColor(x.res);
+  return `<div class="blk ${cls} ${ac&&!cls?'rc':''} ${x.id===editId?'sel':''} ${cmp?'cmp':sizeCls(ht)}" data-id="${x.id}" role="button" tabindex="0" aria-label="${esc(x.name)} ${x.start} 到 ${ts(b)}" style="${ac?'--ac:'+ac+';':''}top:${top}px;height:${ht}px;left:${left};width:${width}">`+
+    `<b>${esc(x.name)}${x.series?'<span class="rec" title="每週固定">↻</span>':''}${c.hard.length&&!cmp?'<span class="tag">重疊</span>':''}</b>`+
+    `<span class="t">${cmp?x.start:x.start+'–'+ts(b)+(x.res?' · '+esc(x.res):'')}</span>`+
+    `${!cmp&&x.note&&ht>=58?`<span class="t note">${esc(x.note)}</span>`:''}${cmp?'':'<i class="grip" aria-hidden="true"></i>'}</div>`;
+}
+
+/* ---------- render ---------- */
+const WS=()=>S().wk===1?1:0;
+function weekStart(s){return addDays(s,-((pd(s).getDay()-WS()+7)%7))}
+function render(){
+  const d=pd(day);
+  if(view==='day')$('dayLabel').textContent=(d.getMonth()+1)+' 月 '+d.getDate()+' 日（週'+WD[d.getDay()]+'）'+(day===T?' · 今天':'');
+  else if(view==='week'){const m=weekStart(day);$('dayLabel').textContent=md(m)+' – '+md(addDays(m,6))}
+  else $('dayLabel').textContent=d.getFullYear()+' 年 '+(d.getMonth()+1)+' 月';
+  $('vDay').classList.toggle('on',view==='day');$('vWeek').classList.toggle('on',view==='week');$('vMonth').classList.toggle('on',view==='month');
+  $('week').hidden=view!=='day';$('below').hidden=view!=='day';
+  $('demo').hidden=!demo;
+  $('emptyHint').hidden=demo||store.items.length>0;
+  $('board').classList.toggle('swaping',!!swapSrc);
+  renderStrip();
+  view==='day'?renderDay():view==='week'?renderWeekView():renderMonthView();
+  markSwap();
+  if(view==='day')renderBelow();
+  const all=items();
+  renderTagSug();
+  $('nameList').innerHTML=[...new Set(all.slice().sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start)).map(x=>x.name))].slice(0,200).map(n=>`<option value="${esc(n)}">`).join('');
+}
+function renderStrip(){
+  if(view!=='day')return;
+  const mon=weekStart(day),all=items();
+  $('week').innerHTML=Array.from({length:7},(_,i)=>{
+    const s=addDays(mon,i),list=all.filter(x=>x.date===s);
+    const bad=list.some(x=>clashes(x,list).hard.length);
+    return `<button data-d="${s}" class="${s===day?'on':''}" aria-label="${mdw(s)}"><span>週${WD[pd(s).getDay()]}</span><b>${pd(s).getDate()}</b><span>${list.length?list.length+' 筆':'—'}${bad?' <span class="dot">撞</span>':''}</span></button>`;
+  }).join('');
+}
+function renderDay(){
+  const list=items().filter(x=>x.date===day).sort((a,b)=>tm(a.start)-tm(b.start));
+  const[open,close]=rangeFor(list),lanes=lanesOf(list);
+  let h='';
+  for(let m=open;m<=close;m+=60){h+=`<div class="hr" style="top:${(m-open)*PX}px"><span>${ts(m)}</span></div>`;if(m<close)h+=`<div class="half" style="top:${(m+30-open)*PX}px"></div>`}
+  for(const x of list){
+    const[a,b]=span(x),[l,n]=lanes[x.id];
+    h+=blockHTML(x,list,(a-open)*PX+1,Math.max(22,(b-a)*PX-2),`calc(64px + (100% - 64px) * ${l/n})`,`calc((100% - 64px) / ${n} - 4px)`,false);
+  }
+  if(day===T){const n=new Date(),nm=n.getHours()*60+n.getMinutes();if(nm>=open&&nm<=close)h+=`<div class="now" style="top:${(nm-open)*PX}px"></div>`}
+  $('board').innerHTML=`<div class="tl" data-col="${day}" data-open="${open}" style="height:${(close-open)*PX+8}px" aria-label="${mdw(day)}時間軸">${h}</div>`;
+}
+function renderWeekView(){
+  const mon=weekStart(day),days=Array.from({length:7},(_,i)=>addDays(mon,i)),all=items();
+  const wk=all.filter(x=>x.date>=days[0]&&x.date<=days[6]);
+  const[open,close]=rangeFor(wk),H=(close-open)*PXW;
+  let gut='';for(let m=open;m<=close;m+=60)gut+=`<span style="top:${(m-open)*PXW}px">${m/60}</span>`;
+  const cols=days.map(s=>{
+    const list=wk.filter(x=>x.date===s).sort((a,b)=>tm(a.start)-tm(b.start)),lanes=lanesOf(list);
+    const bl=list.map(x=>{const[a,b]=span(x),[l,n]=lanes[x.id];return blockHTML(x,list,(a-open)*PXW,Math.max(20,(b-a)*PXW-1),`calc(${l/n*100}% + 1px)`,`calc(${100/n}% - 2px)`,true)}).join('');
+    return `<div class="wkcol ${s===T?'today':''}" data-col="${s}" data-open="${open}" style="background-size:100% ${60*PXW}px">${bl}</div>`;
+  }).join('');
+  $('board').innerHTML=`<div class="wkrow wkhead"><span></span>${days.map(s=>`<button data-d="${s}" class="${s===T?'today':''}">週${WD[pd(s).getDay()]}<b>${pd(s).getDate()}</b></button>`).join('')}</div>`+
+    `<div class="wkrow wkbody" style="height:${H+4}px"><div class="wkgut">${gut}</div>${cols}</div>`;
+}
+function renderMonthView(){
+  const d=pd(day),first=ds(new Date(d.getFullYear(),d.getMonth(),1)),start=weekStart(first);
+  const last=new Date(d.getFullYear(),d.getMonth()+1,0),weeks=Math.ceil(((last-pd(start))/864e5+1)/7);
+  const all=items();
+  const cells=Array.from({length:weeks*7},(_,i)=>{
+    const s=addDays(start,i),dd=pd(s),list=all.filter(x=>x.date===s).sort((a,b)=>tm(a.start)-tm(b.start));
+    const badIds=new Set(list.filter(x=>clashes(x,list).hard.length).map(x=>x.id));
+    const show=list.length>3?2:3;
+    const evs=list.slice(0,show).map(x=>{const ac=resColor(x.res);return `<span class="ev ${badIds.has(x.id)?'bad':''}" data-tip="${x.id}" style="${ac?'--ac:'+ac:''}" ><span class="et">${x.start}</span><b>${esc(x.name)}</b>${x.series?'<span class="rec">↻</span>':''}</span>`}).join('');
+    return `<button type="button" class="mocell ${dd.getMonth()!==d.getMonth()?'other':''} ${s<T?'past':''} ${s===T?'today':''} ${s===day?'cur':''}" data-mday="${s}" aria-label="${mdw(s)}，${list.length} 筆${badIds.size?'，有重疊':''}">`+
+      `<span class="dn"><b>${dd.getDate()}</b>${badIds.size?'<span class="bd">撞</span>':''}</span>${evs}${list.length>show?`<span class="more">+${list.length-show}</span>`:''}${list.length?`<span class="cnt" aria-hidden="true">${list.slice(0,4).map(x=>`<i class="${badIds.has(x.id)?'bad':''}" style="${resColor(x.res)?'--ac:'+resColor(x.res):''}"></i>`).join('')}${list.length>4?'<em>+'+(list.length-4)+'</em>':''}</span>`:''}</button>`;
+  }).join('');
+  $('board').innerHTML=`<div class="mohead">${Array.from({length:7},(_,i)=>`<span>週${WD[(i+WS())%7]}</span>`).join('')}</div><div class="mogrid">${cells}</div>`;
+}
+function renderBelow(){
+  const list=items().filter(x=>x.date===day),g=gaps(day);
+  $('free').innerHTML=g.length?g.map(([a,b])=>`<button type="button" data-free="${a}">${ts(a)}–${ts(b)}</button>`).join(''):'<span class="hint">這天排滿了。</span>';
+  const iss=[];
+  for(const x of list){
+    const c=clashes(x,list),b=span(x)[1];
+    c.hard.forEach(y=>{if(x.id<y.id){const sh=sharedTags(x,y);iss.push(`<li><b style="color:var(--bad)">重疊</b> ${esc(x.name)} ${x.start}–${ts(b)} 和 ${esc(y.name)} ${y.start}–${ts(span(y)[1])}${sh.length?`（${sh.map(esc).join('、')} 同時被排兩件）`:''}</li>`)}});
+    c.soft.forEach(y=>{if(span(y)[0]>=b)iss.push(`<li><b style="color:var(--warn)">太緊</b> ${esc(x.name)} 結束到 ${esc(y.name)} 開始不到 ${S().buffer} 分鐘</li>`)});
+  }
+  $('issues').innerHTML=list.length?iss.join(''):'<li style="color:var(--mute);list-style:none;margin-inline-start:-20px">這天還沒有排任何事，點時間軸空白處就能新增。</li>';
+}
+
+/* ---------- form ---------- */
+function renderChips(){
+  const custom=!DURS.includes(durSel);
+  $('chips').innerHTML=DURS.map(m=>`<button type="button" data-m="${m}" class="${m===durSel?'on':''}">${durLabel(m)}</button>`).join('')+`<button type="button" data-m="other" class="${custom?'on':''}">其他${custom&&durSel?' · '+durSel+' 分':''}</button>`;
+  $('customDur').style.display=custom?'flex':'none';
+  $('durOut').textContent=durSel?durLabel(durSel)+(tm($('fStart').value||'0:0')?' · 到 '+ts(tm($('fStart').value)+durSel):''):'—';
+}
+function draft(){return{id:editId||'__new',res:normTags($('fRes').value),date:$('fDate').value,start:$('fStart').value,dur:+$('fDur').value||0}}
+const why=(x,y)=>{const sh=sharedTags(x,y);return sh.length?sh.map(esc).join('、')+' 已經排了':''};
+const fmtY=(y,x)=>`${esc(y.name)}（${y.date===x.date?'':md(y.date)+' '}${y.start}–${ts(span(y)[1])}${why(x,y)?'，'+why(x,y):''}）`;
+function renderCheck(){
+  const x=draft(),box=$('check');
+  if(!x.date||!x.start||!x.dur){box.className='check';box.innerHTML='選好時間，這裡會告訴你有沒有撞到。';return}
+  const[reps,iv]=repOf(),all=items();let hard=[],soft=[];
+  for(let i=0;i<reps;i++){const c=clashes({...x,date:addDays(x.date,i*iv)},all);hard.push(...c.hard);soft.push(...c.soft)}
+  const end=ts(tm(x.start)+x.dur),outside=tm(x.start)<tm(S().open)||tm(x.start)+x.dur>tm(S().close);
+  if(hard.length){box.className='check bad';box.innerHTML=`<b>會撞到 ${hard.length} 筆：</b>${hard.map(y=>fmtY(y,x)).join('、')}`}
+  else if(soft.length){box.className='check warn';box.innerHTML=`<b>可以排，但有點緊：</b>和 ${soft.map(y=>fmtY(y,x)).join('、')} 之間不到 ${S().buffer} 分鐘。`}
+  else{box.className='check ok';box.innerHTML=`<b>這個時段沒問題</b> ${x.start}–${end}${reps>1?`，${reps} 次都空著`:''}`}
+  if(outside)box.innerHTML+=`<br><span style="color:var(--warn)">超出時間軸 ${S().open}–${S().close}</span>`;
+}
+function fillForm(x){
+  if(!x&&editId){$('fStart').value='';$('fRes').value=''}
+  editId=x?x.id:null;prefilledFor='';
+  $('fTitle').textContent=x?'編輯':'新增';
+  $('fName').value=x?x.name:'';$('fPhone').value=x?x.phone||'':'';
+  $('fRes').value=x?x.res||'':$('fRes').value;
+  $('fDate').value=x?x.date:day;if(x)$('fStart').value=x.start;else if(!$('fStart').value)$('fStart').value=S().open;
+  durSel=x?+x.dur:60;$('fDur').value=durSel;
+  $('fNote').value=x?x.note||'':'';$('fRep').value='1:7';$('fRep').disabled=!!x;
+  $('delete').hidden=!x;$('deleteSeries').hidden=!(x&&x.series);$('extra').hidden=!x;$('ics').hidden=!(x&&downloads);
+  $('nameHint').hidden=true;
+  if(x)$('msg').textContent=x.prev&&!x.prev.sent?'💬 複製異動通知（時間改過了）':'💬 複製時段通知';
+  renderChips();renderCheck();renderTagSug();
+  document.querySelectorAll('.blk.sel').forEach(e=>e.classList.remove('sel'));
+  if(x){const el=document.querySelector(`.blk[data-id="${x.id}"]`);if(el)el.classList.add('sel')}
+}
+function openPanel(focusName){
+  if(narrow()){$('panel').classList.add('open');$('scrim').classList.add('on')}
+  if(focusName)setTimeout(()=>$('fName').focus({preventScroll:true}),narrow()?260:0);
+}
+function closePanel(){$('panel').classList.remove('open');$('scrim').classList.remove('on')}
+function openAt(min,dur,date){
+  fillForm(null);
+  $('fDate').value=date||day;$('fStart').value=ts(min);
+  if(dur){durSel=dur;$('fDur').value=dur}
+  renderChips();renderCheck();openPanel(true);
+}
+function openEdit(id){const x=items().find(y=>y.id===id);if(x){fillForm(x);openPanel(false)}}
+function quickAdd(){
+  const n=new Date(),nowM=Math.ceil((n.getHours()*60+n.getMinutes())/15)*15;
+  const from=day===T?Math.max(tm(S().open),nowM):tm(S().open);
+  const f=freeSlot({id:'__new',date:day,start:ts(from),dur:durSel||60,res:''},items());
+  openAt(f!=null?f:from);
+}
+
+/* ---------- overlap dialog ---------- */
+let mHandlers={};
+function askOverlap(x,hard,h){
+  const end=ts(tm(x.start)+x.dur);
+  $('mBody').innerHTML=`<p style="margin:0">${esc(x.name)} ${mdw(x.date)} ${x.start}–${end} 會撞到：</p><ul>${hard.map(y=>`<li>${esc(y.name)}　${md(y.date)} ${y.start}–${ts(span(y)[1])}${y.res?' · '+esc(y.res):''}</li>`).join('')}</ul>`;
+  const f=freeSlot(x,items());
+  $('mFree').hidden=f==null;if(f!=null)$('mFree').textContent='改到 '+ts(f)+' 排進去';
+  mHandlers={ok:h.onOk,free:()=>h.onFree(f),cancel:h.onCancel||(()=>{})};
+  $('modal').classList.add('on');($('mFree').hidden?$('mCancel'):$('mFree')).focus();
+}
+const closeModal=()=>$('modal').classList.remove('on');
+$('mFree').onclick=()=>{closeModal();mHandlers.free&&mHandlers.free()};
+$('mOk').onclick=()=>{closeModal();mHandlers.ok&&mHandlers.ok()};
+$('mCancel').onclick=()=>{closeModal();mHandlers.cancel&&mHandlers.cancel()};
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal'){closeModal();mHandlers.cancel&&mHandlers.cancel()}});
+
+/* ---------- save ---------- */
+function repOf(){if(editId)return[1,7];const[n,i]=($('fRep').value||'1:7').split(':').map(Number);return[n||1,i||7]}
+function readForm(){return{name:$('fName').value.trim(),res:normTags($('fRes').value),phone:$('fPhone').value.trim(),date:$('fDate').value,start:$('fStart').value,dur:Math.round(+$('fDur').value),note:$('fNote').value.trim()}}
+function submitForm(){
+  const base=readForm();
+  if(!base.name){$('fName').focus();toast('先填「標題」');return}
+  if(!base.date||!base.start||!base.dur)return;
+  const[reps,iv]=repOf(),x={...base,id:editId||'__new'};let hard=[];
+  for(let i=0;i<reps;i++)hard.push(...clashes({...x,date:addDays(x.date,i*iv)},items()).hard);
+  if(hard.length)askOverlap(x,hard,{onOk:()=>saveBase(base,reps,iv),onFree:f=>{$('fStart').value=ts(f);renderCheck();submitForm()},onCancel:()=>$('fStart').focus()});
+  else saveBase(base,reps,iv);
+}
+function saveBase(base,reps,iv=7){
+  const id=editId;
+  if(id&&items().some(y=>y.id===id)){
+    let changed=false;
+    mutate(arr=>{const i=arr.findIndex(y=>y.id===id);if(i>=0){const old={...arr[i]};arr[i]={...arr[i],...base};changed=old.date!==base.date||old.start!==base.start||+old.dur!==+base.dur;if(changed)markChange(arr[i],old)}},'已更新 '+base.name,()=>{const t=items().find(y=>y.id===id);markSent(id);return noticeText(t)});
+    if(!changed)$('notify').style.display='none';
+  }else{
+    leaveDemo();const series=reps>1?uid():'';
+    mutate(arr=>{for(let i=0;i<reps;i++)arr.push({...base,svc:'',id:uid(),series,date:addDays(base.date,i*iv)})},`已排入 ${base.name} ${md(base.date)} ${base.start}${reps>1?`，${iv===14?'隔週':'每週'}共 ${reps} 次`:''}`);
+  }
+  day=base.date;closePanel();fillForm(null);render();
+}
+$('form').addEventListener('submit',e=>{e.preventDefault();submitForm()});
+$('reset').onclick=()=>{fillForm(null);closePanel()};
+$('closeSheet').onclick=closePanel;$('scrim').onclick=closePanel;
+$('delete').onclick=()=>{const id=editId,x=items().find(y=>y.id===id);if(!x)return;const cx={...x};mutate(arr=>{const i=arr.findIndex(y=>y.id===id);if(i>=0)arr.splice(i,1)},'已刪除 '+x.name,()=>cancelText([cx]));fillForm(null);closePanel()};
+$('deleteSeries').onclick=()=>{const x=items().find(y=>y.id===editId);if(!x)return;const gone=items().filter(y=>y.series===x.series&&y.date>=x.date).sort((a,b)=>a.date.localeCompare(b.date)).map(y=>({...y}));mutate(arr=>{for(let i=arr.length-1;i>=0;i--)if(arr[i].series===x.series&&arr[i].date>=x.date)arr.splice(i,1)},'已刪除 '+x.name+' 之後的每週這堂',()=>cancelText(gone));fillForm(null);closePanel()};
+$('rebook').onclick=openRoll;
+/* ---------- roll out weekly ---------- */
+let roll=null;
+function openRoll(){
+  const x=items().find(y=>y.id===editId);if(!x)return;
+  const sib=x.series?items().filter(y=>y.series===x.series&&y.date>=x.date).sort((a,b)=>a.date.localeCompare(b.date)):[x];
+  const last=sib[sib.length-1]||x;
+  roll={id:x.id,from:last.date,n:4,iv:7,skip:true};
+  $('rollWho').textContent=`${x.name} · 週${WD[pd(x.date).getDay()]} ${x.start}–${ts(span(x)[1])}${x.res?' · '+x.res:''}`;
+  $('rollFrom').textContent=last.date!==x.date?`目前已經排到 ${mdw(last.date)}，會從那之後開始展延。`:'';
+  $('rollSkip').checked=true;renderRoll();$('rollDlg').classList.add('on');
+}
+function rollPlan(){
+  const x=items().find(y=>y.id===roll.id);if(!x)return[];
+  const cnt=roll.n===1?1:Math.max(1,Math.round(roll.n*7/roll.iv));
+  return Array.from({length:cnt},(_,i)=>{const n={...x,id:'__r'+i,date:addDays(roll.from,(i+1)*roll.iv)};return{n,hard:clashes(n,items()).hard}});
+}
+function renderRoll(){
+  document.querySelectorAll('#rollN button').forEach(b=>b.classList.toggle('on',+b.dataset.n===roll.n));
+  document.querySelectorAll('#rollIv button').forEach(b=>b.classList.toggle('on',+b.dataset.iv===roll.iv));
+  const plan=rollPlan(),bad=plan.filter(p=>p.hard.length).length;
+  $('rollList').innerHTML=plan.map(p=>`<li class="${p.hard.length?'rb':''}">${mdw(p.n.date)} ${p.n.start}${p.hard.length?` <span>⚠ 撞到 ${p.hard.map(y=>esc(y.name)).join('、')}${roll.skip?'，這週跳過':''}</span>`:' <span class="rk">✓</span>'}</li>`).join('');
+  const cnt=roll.skip?plan.length-bad:plan.length;
+  $('rollOk').textContent=`展延 ${cnt} 次`;$('rollOk').disabled=!cnt;
+  $('rollOk').classList.toggle('danger',!roll.skip&&bad>0);
+}
+$('rollN').addEventListener('click',e=>{const b=e.target.closest('[data-n]');if(b){roll.n=+b.dataset.n;renderRoll()}});
+$('rollIv').addEventListener('click',e=>{const b=e.target.closest('[data-iv]');if(b){roll.iv=+b.dataset.iv;renderRoll()}});
+$('rollSkip').onchange=e=>{roll.skip=e.target.checked;renderRoll()};
+$('rollNo').onclick=()=>$('rollDlg').classList.remove('on');
+$('rollOk').onclick=()=>{
+  const x=items().find(y=>y.id===roll.id);if(!x)return;
+  const all=rollPlan(),plan=all.filter(p=>!roll.skip||!p.hard.length),series=x.series||uid(),skipped=all.length-plan.length;
+  $('rollDlg').classList.remove('on');
+  mutate(arr=>{const src=arr.find(y=>y.id===x.id);if(src&&!src.series)src.series=series;for(const p of plan)arr.push({...p.n,id:uid(),series})},`已展延 ${x.name} ${plan.length} 次${skipped?`，跳過 ${skipped} 週`:''}，排到 ${md(plan.length?plan[plan.length-1].n.date:x.date)}`,()=>seriesText(x,plan.map(p=>p.n)));
+  fillForm(null);closePanel();
+};
+
+const slotLine=x=>`${mdw(x.date)} ${x.start}–${ts(tm(x.start)+(+x.dur))}`;
+const whoLine=x=>x.res?`\n相關：${x.res}`:'';
+function noticeText(x){
+  if(x.prev&&!(x.prev.date===x.date&&x.prev.start===x.start&&+x.prev.dur===+x.dur))
+    return `【時段異動通知】\n${x.name}\n原本：${slotLine(x.prev)}\n改為：${slotLine(x)}${whoLine(x)}\n如新時段不方便，請告訴我，謝謝！`;
+  return `【時段通知】\n${x.name}\n時間：${slotLine(x)}${whoLine(x)}\n如時間不方便，請告訴我，謝謝！`;
+}
+function swapText(a,b){return `【時段異動通知】\n${a.name} 和 ${b.name} 交換時段：\n・${a.name}：${slotLine(b)} → ${slotLine(a)}\n・${b.name}：${slotLine(a)} → ${slotLine(b)}\n如新時段不方便，請告訴我，謝謝！`}
+function cancelText(list){const x=list[0];return `【取消通知】\n${x.name}\n${list.map(y=>slotLine(y)).join('\n')}\n${list.length>1?'以上時段':'這個時段'}已取消，如需改期請告訴我，謝謝！`}
+function seriesText(x,plan){return `【固定時段通知】\n${x.name}\n每${plan.length>1&&plan[1].date&&(pd(plan[1].date)-pd(plan[0].date))/864e5===14?'隔週':'週'}${WD[pd(x.date).getDay()]} ${x.start}–${ts(span(x)[1])}${whoLine(x)}\n日期：${plan.map(p=>md(p.date)).join('、')}\n如有不方便的日期，請告訴我，謝謝！`}
+function markSent(id){const t=store.items.find(y=>y.id===id);if(t&&t.prev){t.prev.sent=true;persist()}}
+async function copyText(t,okMsg){
+  try{await navigator.clipboard.writeText(t);toast(okMsg||'已複製，貼到 LINE 就能傳')}
+  catch(e){$('msgText').value=t;$('msgDlg').classList.add('on');$('msgText').select()}
+}
+$('msg').onclick=()=>{const x=items().find(y=>y.id===editId);if(!x)return;copyText(noticeText(x));markSent(x.id);fillForm(x)};
+$('msgClose').onclick=()=>$('msgDlg').classList.remove('on');
+$('ics').onclick=async()=>{
+  const x=items().find(y=>y.id===editId);if(!x||!downloads)return;
+  const st=pd(x.date);st.setMinutes(tm(x.start));const en=new Date(st.getTime()+x.dur*60000);
+  const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  const e=s=>String(s).replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//paichengbiao//TW','BEGIN:VEVENT','UID:'+x.id+'@paichengbiao','DTSTAMP:'+f(new Date()),'DTSTART:'+f(st),'DTEND:'+f(en),'SUMMARY:'+e(x.name+(x.res?' · '+x.res:'')),'DESCRIPTION:'+e(x.note||''),'BEGIN:VALARM','TRIGGER:-PT30M','ACTION:DISPLAY','DESCRIPTION:'+e(x.name),'END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  try{await downloads.save({filename:x.name+'-'+x.date+'.ics',data:ics,type:'text/calendar'});toast('打開這個檔案就能加進手機行事曆，30 分鐘前會提醒你')}
+  catch(err){toast('沒有下載')}
+};
+
+/* name memory */
+$('fName').addEventListener('input',()=>{
+  const n=$('fName').value.trim();
+  if(editId||!n||n===prefilledFor)return;
+  const past=store.items.filter(y=>y.name===n).sort((a,b)=>(b.date+b.start).localeCompare(a.date+a.start))[0];
+  if(!past){$('nameHint').hidden=true;return}
+  prefilledFor=n;durSel=+past.dur;$('fDur').value=durSel;if(past.res){$('fRes').value=past.res;renderTagSug()}if(past.phone&&!$('fPhone').value)$('fPhone').value=past.phone;
+  $('nameHint').textContent=`已帶入上次的設定：${durLabel(+past.dur)}${past.res?' · '+past.res:''}`;$('nameHint').hidden=false;
+  renderChips();renderCheck();
+});
+['fDate','fStart','fDur','fRep','fRes'].forEach(id=>$(id).addEventListener('input',renderCheck));
+function renderTagSug(){
+  const cur=tagsOf({res:$('fRes').value}),cnt={};
+  items().forEach(x=>tagsOf(x).forEach(t=>cnt[t]=(cnt[t]||0)+1));
+  const list=[...new Set([...cur,...Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])])].slice(0,14);
+  $('tagSug').innerHTML=list.length?list.map(t=>`<button type="button" data-tag="${esc(t)}" class="${cur.includes(t)?'on':''}" style="--ac:${tagColor(t)}">${cur.includes(t)?'✓ ':'＋ '}${esc(t)}</button>`).join(''):'';
+}
+$('fRes').addEventListener('input',renderTagSug);
+$('tagSug').addEventListener('click',e=>{const b=e.target.closest('[data-tag]');if(!b)return;const t=b.dataset.tag,cur=tagsOf({res:$('fRes').value});
+  $('fRes').value=(cur.includes(t)?cur.filter(x=>x!==t):[...cur,t]).join('、');renderTagSug();renderCheck()});
+$('chips').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;
+  if(b.dataset.m==='other'){durSel=DURS.includes(durSel)?0:durSel;$('fDur').value=durSel||'';renderChips();$('fDur').focus()}
+  else{durSel=+b.dataset.m;$('fDur').value=durSel;renderChips()}
+  renderCheck()});
+const stepDur=n=>{durSel=Math.max(1,(+$('fDur').value||durSel||60)+n);$('fDur').value=durSel;renderChips();renderCheck()};
+$('durMinus').onclick=()=>stepDur(-5);$('durPlus').onclick=()=>stepDur(5);
+$('fStart').addEventListener('input',renderChips);
+$('fDur').addEventListener('input',()=>{const v=Math.round(+$('fDur').value);if(v>0){durSel=v;renderChips()}});
+
+/* ---------- pointer: tap, drag to move/resize, drag to create ---------- */
+const board=$('board');let P=null,ghost=null,suppressSwipe=false;
+const pxNow=()=>view==='day'?PX:PXW;
+function minuteAt(y,col){const r=col.getBoundingClientRect();return Math.max(0,Math.min(23*60+45,+col.dataset.open+Math.round((y-r.top)/pxNow()/15)*15))}
+board.addEventListener('pointerdown',e=>{
+  if(e.button>0)return;
+  const col=e.target.closest('[data-col]');if(!col)return;
+  const b=e.target.closest('.blk'),touch=e.pointerType!=='mouse';
+  P={x:e.clientX,y:e.clientY,pid:e.pointerId,col,el:b,id:b?b.dataset.id:null,mode:b?(e.target.classList.contains('grip')?'resize':'move'):'new',touch,armed:false,moved:false,scrolled:false};
+  if(P.id){const it=items().find(y=>y.id===P.id);if(!it){P=null;return}P.s0=tm(it.start);P.d0=+it.dur;P.ns=P.s0;P.nd=P.d0}
+  if(view!=='day')return;
+  if(P.id){if(!touch||P.mode==='resize'){P.armed=true;if(P.mode==='resize')P.el.classList.add('lift')}else P.timer=setTimeout(()=>{if(P&&!P.scrolled){P.armed=true;P.el.classList.add('lift');try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}}},350)}
+  else if(!touch)P.armed=true;
+});
+addEventListener('pointermove',e=>{
+  if(!P||e.pointerId!==P.pid)return;
+  const dx=e.clientX-P.x,dy=e.clientY-P.y;
+  if(!P.armed){if(Math.hypot(dx,dy)>8){P.scrolled=true;clearTimeout(P.timer)}return}
+  if(!P.moved&&Math.abs(dy)<5)return;
+  P.moved=true;
+  const open=+P.col.dataset.open;
+  if(P.id){
+    const delta=Math.round(dy/PX/5)*5;
+    if(P.mode==='move'){P.ns=Math.max(0,Math.min(24*60-P.d0,P.s0+delta));P.nd=P.d0}else{P.ns=P.s0;P.nd=Math.max(5,P.d0+delta)}
+    P.el.classList.add('lift');
+    P.el.style.top=((P.ns-open)*PX+1)+'px';const nh=Math.max(22,P.nd*PX-2);P.el.style.height=nh+'px';P.el.classList.remove('xs','s','m','l');P.el.classList.add(sizeCls(nh));
+    const t=P.el.querySelector('.t');if(t)t.textContent=ts(P.ns)+'–'+ts(P.ns+P.nd)+(P.mode==='resize'?' · '+durLabel(P.nd):'');
+    const it=items().find(y=>y.id===P.id);
+    P.el.classList.toggle('bad',clashes({...it,start:ts(P.ns),dur:P.nd},items()).hard.length>0);
+  }else{
+    const a=minuteAt(Math.min(P.y,e.clientY),P.col),b=Math.max(a+15,minuteAt(Math.max(P.y,e.clientY),P.col));
+    if(!ghost){ghost=document.createElement('div');ghost.className='ghost';P.col.appendChild(ghost)}
+    ghost.style.top=((a-open)*PX)+'px';ghost.style.height=((b-a)*PX)+'px';ghost.textContent=ts(a)+'–'+ts(b);
+    P.na=a;P.nb=b;
+  }
+});
+board.addEventListener('touchmove',e=>{if(P&&P.armed)e.preventDefault()},{passive:false});
+addEventListener('pointerup',e=>{
+  if(!P||e.pointerId!==P.pid)return;
+  clearTimeout(P.timer);const g=P;P=null;
+  if(g.el)g.el.classList.remove('lift');
+  if(ghost){ghost.remove();ghost=null}
+  if(g.moved)suppressSwipe=true;
+  if(g.scrolled&&!g.moved)return;
+  if(g.id){
+    if(g.moved)commitDrag(g);
+    else if(swapSrc){if(g.id===swapSrc)endSwap();else askSwap(swapSrc,g.id)}
+    else{if(view==='week')day=g.col.dataset.col;openEdit(g.id)}
+  }else{
+    if(g.moved&&g.na!=null)openAt(g.na,g.nb-g.na,g.col.dataset.col);
+    else{const d=g.col.dataset.col;if(view==='week')day=d;openAt(minuteAt(g.y,g.col),0,d)}
+  }
+});
+addEventListener('pointercancel',()=>{if(!P)return;clearTimeout(P.timer);P=null;if(ghost){ghost.remove();ghost=null}render()});
+function commitDrag(g){
+  const it=items().find(y=>y.id===g.id);if(!it)return;
+  if(g.ns===g.s0&&g.nd===g.d0){render();return}
+  const cand={...it,start:ts(g.ns),dur:g.nd};
+  const apply=s=>mutate(arr=>{const t=arr.find(y=>y.id===g.id);if(t){const old={...t};t.start=ts(s);t.dur=g.nd;markChange(t,old)}},`${it.name} 改到 ${ts(s)}–${ts(s+g.nd)}`,()=>{const t=items().find(y=>y.id===g.id);markSent(g.id);return noticeText(t)});
+  const hard=clashes(cand,items()).hard;
+  if(hard.length)askOverlap(cand,hard,{onOk:()=>apply(g.ns),onFree:f=>apply(f),onCancel:render});else apply(g.ns);
+}
+board.addEventListener('keydown',e=>{const b=e.target.closest('.blk');if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openEdit(b.dataset.id)}});
+board.addEventListener('click',e=>{const ev=e.target.closest('.ev[data-tip]');if(ev){e.stopPropagation();const id=ev.dataset.tip;if(swapSrc){if(id===swapSrc)endSwap();else askSwap(swapSrc,id)}else{const x=items().find(y=>y.id===id);if(x){day=x.date;openEdit(id);render()}}return}const b=e.target.closest('.wkhead [data-d]');if(b){day=b.dataset.d;view='day';render();return}const m=e.target.closest('[data-mday]');if(m){day=m.dataset.mday;view='day';if(!editId)$('fDate').value=day;render();renderCheck()}});
+/* swipe to change day */
+let sw=null;
+board.addEventListener('touchstart',e=>{const t=e.touches[0];sw={x:t.clientX,y:t.clientY};suppressSwipe=false},{passive:true});
+board.addEventListener('touchend',e=>{if(!sw||suppressSwipe)return;const t=e.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y;sw=null;if(Math.abs(dx)>70&&Math.abs(dx)>1.6*Math.abs(dy))shift(dx<0?1:-1)});
+
+/* ---------- nav ---------- */
+function addMonths(s,n){const d=pd(s),t=new Date(d.getFullYear(),d.getMonth()+n,1),lastD=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(d.getDate(),lastD));return ds(t)}
+function shift(n){day=view==='month'?addMonths(day,n):addDays(day,view==='day'?n:7*n);if(!editId)$('fDate').value=day;render();renderCheck()}
+const go=s=>{day=s;if(!editId)$('fDate').value=s;render();renderCheck()};
+$('prev').onclick=()=>shift(-1);$('next').onclick=()=>shift(1);$('today').onclick=()=>go(T);
+$('vDay').onclick=()=>{view='day';render()};$('titleBtn').onclick=()=>{const j=$('jump');j.value=day;try{j.showPicker()}catch(e){j.style.pointerEvents='auto';j.focus();j.click()}};
+$('jump').onchange=e=>{if(e.target.value)go(e.target.value)};
+$('vWeek').onclick=()=>{view='week';render()};$('vMonth').onclick=()=>{view='month';render()};
+$('add').onclick=quickAdd;$('fab').onclick=quickAdd;
+$('week').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(b)go(b.dataset.d)});
+$('free').addEventListener('click',e=>{const b=e.target.closest('[data-free]');if(b)openAt(+b.dataset.free)});
+$('clearDemo').onclick=()=>{demo=false;fillForm(null);render()};
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&swapSrc&&!document.querySelector('.modal.on')){endSwap();return}
+  if(document.documentElement.classList.contains('locked'))return;
+  if(e.key==='Escape'){['pwDlg','wipeDlg','fbDlg'].forEach(i=>$(i).classList.remove('on'));if(pwResolve){const r=pwResolve;pwResolve=null;r(null)}$('swapDlg').classList.remove('on');$('rollDlg').classList.remove('on');closeModal();$('msgDlg').classList.remove('on');closePanel();return}
+  if(e.target.closest('input,textarea,select')||e.metaKey||e.ctrlKey||e.altKey||document.querySelector('.modal.on'))return;
+  const k=e.key.toLowerCase();
+  if(k==='n'){e.preventDefault();quickAdd()}else if(k==='t')go(T);else if(k==='d'){view='day';render()}else if(k==='w'){view=view==='week'?'day':'week';render()}else if(k==='m'){view=view==='month'?'day':'month';render()}
+  else if(e.key==='ArrowLeft')shift(-1);else if(e.key==='ArrowRight')shift(1);
+});
+
+/* ---------- swap two slots ---------- */
+let swapSrc=null;
+const slotTxt=x=>`${mdw(x.date)} ${x.start}–${ts(span(x)[1])}`;
+function startSwap(){
+  const x=items().find(y=>y.id===editId);if(!x)return;
+  swapSrc=x.id;closePanel();fillForm(null);
+  $('swapTxt').textContent=`要跟誰交換？點另一格（可以換天、換週）。目前選的是：${x.name} ${slotTxt(x)}`;
+  $('swapBar').hidden=false;render();
+}
+function endSwap(){swapSrc=null;$('swapBar').hidden=true;render()}
+function swapIssues(aId,bId){
+  const a=items().find(y=>y.id===aId),b=items().find(y=>y.id===bId);if(!a||!b)return [];
+  const na={...a,date:b.date,start:b.start,dur:b.dur},nb={...b,date:a.date,start:a.start,dur:a.dur};
+  const rest=items().filter(y=>y.id!==a.id&&y.id!==b.id);
+  return [...clashes(na,[...rest,nb]).hard.map(y=>`${a.name} 會撞到 ${y.name} ${y.start}–${ts(span(y)[1])}`),...clashes(nb,[...rest,na]).hard.map(y=>`${b.name} 會撞到 ${y.name} ${y.start}–${ts(span(y)[1])}`)];
+}
+function markSwap(){
+  if(!swapSrc)return;
+  document.querySelectorAll('#board .blk,#board .ev[data-tip]').forEach(el=>{
+    const id=el.dataset.id||el.dataset.tip;
+    if(id===swapSrc){el.classList.add('swapSrc');return}
+    el.classList.add(swapIssues(swapSrc,id).length?'swBad':'swOk');
+  });
+  document.querySelectorAll('#board .mocell').forEach(c=>{const evs=[...c.querySelectorAll('.ev')];if(!evs.length&&c.querySelector('.more'))c.querySelector('.more').title='點這天看全部'});
+}
+let swapPair=null;
+function askSwap(aId,bId){
+  const a=items().find(y=>y.id===aId),b=items().find(y=>y.id===bId);if(!a||!b)return;
+  const na={...a,date:b.date,start:b.start,dur:b.dur},nb={...b,date:a.date,start:a.start,dur:a.dur};
+  const rest=items().filter(y=>y.id!==a.id&&y.id!==b.id);
+  const ca=clashes(na,[...rest,nb]).hard,cb=clashes(nb,[...rest,na]).hard;
+  $('swBody').innerHTML=`<div class="swl"><b>${esc(a.name)}</b><br>${slotTxt(a)} → <b>${slotTxt(na)}</b></div><div class="swl"><b>${esc(b.name)}</b><br>${slotTxt(b)} → <b>${slotTxt(nb)}</b></div>`+
+    ((ca.length||cb.length)?`<p style="color:var(--bad);font-weight:700;margin:8px 0 0">注意：交換後 ${[...ca.map(y=>esc(a.name)+' 會撞到 '+esc(y.name)),...cb.map(y=>esc(b.name)+' 會撞到 '+esc(y.name))].join('、')}</p>`:'<p class="hint">交換後沒有其他重疊。標題、誰／哪裡和備註都留在原本那筆，只交換日期和時間。</p>');
+  $('swOk').textContent=(ca.length||cb.length)?'還是要交換':'確定交換';$('swOk').classList.toggle('danger',!!(ca.length||cb.length));
+  swapPair=[a.id,b.id];$('swapDlg').classList.add('on');$('swOk').focus();
+}
+$('swap').onclick=startSwap;$('swapCancel').onclick=endSwap;
+$('swNo').onclick=()=>{$('swapDlg').classList.remove('on')};
+$('swOk').onclick=()=>{
+  $('swapDlg').classList.remove('on');if(!swapPair)return;
+  const[aId,bId]=swapPair;swapPair=null;
+  const a=items().find(y=>y.id===aId),b=items().find(y=>y.id===bId);if(!a||!b)return;
+  swapSrc=null;$('swapBar').hidden=true;
+  mutate(arr=>{const A=arr.find(y=>y.id===aId),B=arr.find(y=>y.id===bId);const oa={...A},ob={...B};A.date=ob.date;A.start=ob.start;A.dur=ob.dur;B.date=oa.date;B.start=oa.start;B.dur=oa.dur;markChange(A,oa);markChange(B,ob)},`已交換 ${a.name} 和 ${b.name} 的時段`,()=>{const A=items().find(y=>y.id===aId),B=items().find(y=>y.id===bId);markSent(aId);markSent(bId);return swapText(A,B)});
+};
+
+/* ---------- hover tooltip ---------- */
+const tip=$('tip');let tipFor=null;
+function tipHTML(x){
+  const list=items().filter(y=>y.date===x.date),c=clashes(x,list),b=span(x)[1];
+  return `<b>${esc(x.name)}${x.series?' ↻':''}</b><br>${mdw(x.date)} ${x.start}–${ts(b)}<span class="tm">（${durLabel(+x.dur)}）</span>`+
+    (x.res?`<br><span class="tm">誰／哪裡：</span>${esc(x.res)}`:'')+(x.phone?`<br><span class="tm">電話：</span>${esc(x.phone)}`:'')+
+    (x.note?`<br><span class="tm">備註：</span>${esc(x.note)}`:'')+
+    (c.hard.length?`<br><span class="tb">與 ${c.hard.map(y=>esc(y.name)+' '+y.start+'–'+ts(span(y)[1])).join('、')} 重疊</span>`:'')+
+    (swapSrc&&x.id!==swapSrc?(()=>{const iss=swapIssues(swapSrc,x.id);return `<br><span class="${iss.length?'tb':'tm'}" style="${iss.length?'':'color:var(--ok);font-weight:700'}">${iss.length?'交換後：'+iss.map(esc).join('、'):'✓ 可以跟這格交換'}</span>`})():'');
+}
+function showTip(el){
+  const id=el.dataset.id||el.dataset.tip,x=items().find(y=>y.id===id);if(!x){hideTip();return}
+  tipFor=el;tip.innerHTML=tipHTML(x);tip.classList.add('on');
+  const r=el.getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight;
+  let left=Math.min(innerWidth-tw-8,Math.max(8,r.left+r.width/2-tw/2)),top=r.top-th-8;
+  if(top<8)top=Math.min(innerHeight-th-8,r.bottom+8);
+  tip.style.left=left+'px';tip.style.top=top+'px';
+}
+function hideTip(){tipFor=null;tip.classList.remove('on')}
+board.addEventListener('pointerover',e=>{if(e.pointerType!=='mouse'||P&&P.moved)return;const el=e.target.closest('.blk,[data-tip]');if(el&&el!==tipFor)showTip(el)});
+board.addEventListener('pointerout',e=>{const el=e.target.closest('.blk,[data-tip]');if(el&&!el.contains(e.relatedTarget))hideTip()});
+board.addEventListener('pointerdown',hideTip);
+board.addEventListener('focusin',e=>{const el=e.target.closest('.blk');if(el)showTip(el)});
+board.addEventListener('focusout',hideTip);
+addEventListener('scroll',hideTip,{passive:true});
+
+/* ---------- toast ---------- */
+let tt,undoFn=null;
+let notifyFn=null;
+function toast(m,undo,notify){$('toastMsg').textContent=m;undoFn=undo||null;notifyFn=notify||null;$('undo').style.display=undo?'':'none';$('notify').style.display=notify?'':'none';$('toast').style.display='flex';clearTimeout(tt);tt=setTimeout(()=>{$('toast').style.display='none';undoFn=null;notifyFn=null},notify?10000:6000)}
+$('notify').onclick=()=>{const f=notifyFn;$('toast').style.display='none';if(f)copyText(f(),'異動通知已複製，貼到 LINE 就能傳')};
+$('undo').onclick=()=>{if(undoFn){const f=undoFn;undoFn=null;f()}$('toast').style.display='none'};
+
+/* ---------- settings + backup ---------- */
+function loadSettingsUI(){$('sWk').value=String(WS());$('sOpen').value=S().open;$('sClose').value=S().close;$('sBuf').value=S().buffer}
+let st;const saveSettings=()=>{clearTimeout(st);st=setTimeout(()=>{persist();render();renderCheck()},400)};
+$('sOpen').onchange=e=>{S().open=e.target.value||S().open;saveSettings()};
+$('sClose').onchange=e=>{S().close=e.target.value||S().close;saveSettings()};
+$('sWk').onchange=e=>{S().wk=+e.target.value;saveSettings()};
+$('sBuf').oninput=e=>{S().buffer=Math.max(0,+e.target.value||0);saveSettings()};
+$('helpClose').onclick=()=>{$('help').open=false;$('help').scrollIntoView({block:'nearest'})};
+try{if(!localStorage.getItem(LS+'-help')){$('help').open=true;localStorage.setItem(LS+'-help','1')}}catch(e){}
+loadSettingsUI();fillForm(null);render();
+setInterval(()=>{if(day===T&&view==='day'&&!P)renderDay()},60000);
+/* ---------- crypto helpers ---------- */
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+const hasCrypto=()=>!!(window.crypto&&crypto.subtle);
+async function deriveKey(pw,salt){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:250000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function encryptText(txt,pw){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));const k=await deriveKey(pw,salt);const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(txt));return JSON.stringify({app:'paichengbiao',v:1,kdf:'PBKDF2-SHA256',iter:250000,salt:b64(salt),iv:b64(iv),data:b64(ct)})}
+async function decryptText(obj,pw){const k=await deriveKey(pw,unb64(obj.salt));const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(obj.iv)},k,unb64(obj.data));return new TextDecoder().decode(pt)}
+async function sha(t){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return b64(h)}
+
+/* ---------- password dialog ---------- */
+let pwResolve=null;
+function askPw({title,desc,confirm,label,numeric,min=4}){
+  $('pwTitle').textContent=title;$('pwDesc').textContent=desc||'';$('pw1L').textContent=label||'密碼';
+  $('pw1').value='';$('pw2').value='';$('pwErr').textContent='';$('pw2W').hidden=!confirm;
+  $('pw1').inputMode=numeric?'numeric':'text';$('pw2').inputMode=numeric?'numeric':'text';
+  $('pwDlg').dataset.min=min;$('pwDlg').dataset.confirm=confirm?'1':'';$('pwDlg').dataset.numeric=numeric?'1':'';
+  $('pwDlg').classList.add('on');setTimeout(()=>$('pw1').focus(),50);
+  return new Promise(r=>pwResolve=r);
+}
+$('pwForm').addEventListener('submit',e=>{
+  e.preventDefault();const d=$('pwDlg').dataset,p=$('pw1').value;
+  if(p.length<+d.min){$('pwErr').textContent=`至少 ${d.min} 個字`;return}
+  if(d.numeric&&!/^\d+$/.test(p)){$('pwErr').textContent='請只輸入數字';return}
+  if(d.confirm&&p!==$('pw2').value){$('pwErr').textContent='兩次輸入的不一樣';return}
+  $('pwDlg').classList.remove('on');const r=pwResolve;pwResolve=null;r&&r(p);
+});
+$('pwNo').onclick=()=>{$('pwDlg').classList.remove('on');const r=pwResolve;pwResolve=null;r&&r(null)};
+
+/* ---------- encrypted backup ---------- */
+function fmtDate(ts){const d=new Date(ts);return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()}
+function showLastBk(){const m=meta();$('lastBk').textContent=m.lastBk?`上次匯出備份：${fmtDate(m.lastBk)}`:'還沒有匯出過備份。'}
+$('exp').onclick=async()=>{
+  if(!hasCrypto()){toast('這個瀏覽器不支援加密，請用 Safari 或 Chrome 打開');return}
+  if(!store.items.length){toast('還沒有任何排程可以備份');return}
+  const pw=await askPw({title:'匯出加密備份',desc:'設一組備份密碼（至少 6 個字）。之後在新裝置還原時要用到，請記好，忘記就打不開。',confirm:true,min:6});
+  if(!pw)return;
+  try{
+    const enc=await encryptText(JSON.stringify(store),pw);
+    const d=new Date(),name=`排程表備份-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.schedbak`;
+    await downloads.save({filename:name,data:enc,type:'application/octet-stream'});
+    const m=meta();m.lastBk=Date.now();delete m.snooze;saveMeta(m);showLastBk();renderBanners();
+    toast('備份檔已產生，請存到雲端硬碟或傳給自己');
+  }catch(e){if(!(e&&e.name==='AbortError'))toast('沒有完成匯出')}
+};
+$('impBtn').onclick=()=>{$('impFile').value='';$('impFile').click()};
+$('impFile').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  let obj;try{obj=JSON.parse(await f.text())}catch(err){toast('看不懂這個檔案，請確認是排程表的備份檔');return}
+  let data;
+  if(obj&&obj.app==='paichengbiao'&&obj.data){
+    if(!hasCrypto()){toast('這個瀏覽器不支援解密，請用 Safari 或 Chrome 打開');return}
+    const pw=await askPw({title:'輸入備份密碼',desc:'請輸入匯出這份備份時設定的密碼。',min:1});if(!pw)return;
+    try{data=JSON.parse(await decryptText(obj,pw))}catch(err){toast('密碼不對，或檔案已損壞');return}
+  }else data=obj;
+  restore(data);
+};
+function restore(raw){
+  let d;try{d=normalize(raw)}catch(e){toast('備份內容看不懂');return}
+  if(!d.items.length){toast('這份備份是空的，未還原');return}
+  const before=JSON.stringify(store),wasDemo=demo;
+  store=d;demo=false;persist();loadSettingsUI();fillForm(null);render();renderBanners();
+  toast('已還原 '+d.items.length+' 筆',()=>{store=JSON.parse(before);demo=wasDemo;if(!demo)persist();loadSettingsUI();render()});
+}
+$('import').onclick=()=>{try{restore(JSON.parse($('io').value))}catch(e){toast('備份內容看不懂，請確認是完整複製的文字')}};
+
+/* ---------- wipe ---------- */
+$('wipe').onclick=()=>{$('wipeTxt').value='';$('wipeOk').disabled=true;$('wipeDlg').classList.add('on');$('wipeTxt').focus()};
+$('wipeTxt').oninput=e=>{$('wipeOk').disabled=e.target.value.trim()!=='清除'};
+$('wipeNo').onclick=()=>$('wipeDlg').classList.remove('on');
+$('wipeOk').onclick=()=>{try{Object.keys(localStorage).filter(k=>k.startsWith(LS)).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload()};
+
+/* ---------- lock ---------- */
+const LOCK=LS+'-lock';
+function lockInfo(){try{return JSON.parse(localStorage.getItem(LOCK)||'null')}catch(e){return null}}
+function showLockState(){const on=!!lockInfo();$('lockState').textContent=on?'密碼鎖：已開啟':'密碼鎖：未開啟';$('lockSet').textContent=on?'更換密碼':'設定密碼鎖';$('lockOff').hidden=!on}
+function lockNow(){if(!lockInfo())return;document.documentElement.classList.add('locked');$('lockPin').value='';$('lockErr').textContent='';closePanel();setTimeout(()=>$('lockPin').focus(),50)}
+let tries=0,waitUntil=0;
+$('lockForm').addEventListener('submit',async e=>{
+  e.preventDefault();const li=lockInfo();if(!li){document.documentElement.classList.remove('locked');return}
+  if(Date.now()<waitUntil){$('lockErr').textContent=`錯太多次，請 ${Math.ceil((waitUntil-Date.now())/1000)} 秒後再試`;return}
+  const ok=hasCrypto()&&(await sha(li.salt+$('lockPin').value))===li.hash;
+  if(ok){tries=0;document.documentElement.classList.remove('locked');$('lockPin').value='';render()}
+  else{tries++;$('lockPin').value='';if(tries>=5){waitUntil=Date.now()+30000;tries=0}$('lockErr').textContent=Date.now()<waitUntil?'錯太多次，請 30 秒後再試':'密碼不對'}
+});
+$('lockForgot').onclick=()=>{$('lockErr').innerHTML='密碼無法找回。只能清除全部資料重新開始，再用備份檔還原。<br><button type="button" id="lockWipe" class="ghostBtn" style="margin-top:8px">清除全部資料</button>';$('lockWipe').onclick=()=>{document.documentElement.classList.remove('locked');$('wipe').click()}};
+$('lockSet').onclick=async()=>{
+  if(!hasCrypto()){toast('這個瀏覽器不支援密碼鎖');return}
+  const pin=await askPw({title:lockInfo()?'更換密碼':'設定密碼鎖',desc:'請設定 4～8 位數字。之後每次打開排程表都要輸入。忘記密碼就只能清除資料重來，請記好。',confirm:true,numeric:true,min:4,label:'密碼（數字）'});
+  if(!pin)return;if(pin.length>8){toast('最多 8 位數');return}
+  const salt=b64(crypto.getRandomValues(new Uint8Array(16)));
+  try{localStorage.setItem(LOCK,JSON.stringify({salt,hash:await sha(salt+pin)}))}catch(e){}
+  showLockState();toast('密碼鎖已開啟，離開超過 3 分鐘會自動上鎖');
+};
+$('lockOff').onclick=()=>{try{localStorage.removeItem(LOCK)}catch(e){}showLockState();toast('密碼鎖已關閉')};
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(hiddenAt&&Date.now()-hiddenAt>180000)lockNow()});
+
+/* ---------- banners: backup reminder, install tip, update ---------- */
+let installEvt=null,updateReady=null;
+function renderBanners(){
+  const out=[],m=meta(),now=Date.now(),day=864e5;
+  if(!demo&&store.items.length){
+    const since=m.lastBk||m.first||now,days=Math.floor((now-since)/day);
+    if(days>=30&&!(m.snooze&&now<m.snooze))out.push(`<div class="banner"><span>💾 已經 ${days} 天沒有備份了。資料只在這台裝置，萬一遺失或壞掉就會不見。</span><button type="button" data-b="bk" class="primary">現在備份</button><button type="button" data-b="snooze">7 天後再提醒</button></div>`);
+  }
+  if(updateReady)out.push('<div class="banner info"><span>✨ 有新版本了</span><button type="button" data-b="upd" class="primary">更新</button></div>');
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  if(!standalone&&!m.noTip&&document.querySelector('link[rel=manifest]')){
+    if(installEvt)out.push('<div class="banner info"><span>📲 把排程表安裝到手機，像 App 一樣從主畫面打開，沒網路也能用。</span><button type="button" data-b="install" class="primary">安裝</button><button type="button" data-b="notip">不用了</button></div>');
+    else if(/iphone|ipad|ipod/i.test(navigator.userAgent))out.push('<div class="banner info"><span>📲 加到主畫面：在 Safari 按下方「分享」→「加入主畫面」。從主畫面打開，資料比較不會被系統清掉。</span><button type="button" data-b="notip">知道了</button></div>');
+  }
+  $('banners').innerHTML=out.join('');
+}
+$('banners').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-b]');if(!b)return;const m=meta();
+  if(b.dataset.b==='bk')$('exp').click();
+  else if(b.dataset.b==='snooze'){m.snooze=Date.now()+7*864e5;saveMeta(m)}
+  else if(b.dataset.b==='notip'){m.noTip=1;saveMeta(m)}
+  else if(b.dataset.b==='install'&&installEvt){installEvt.prompt();try{await installEvt.userChoice}catch(_){}installEvt=null}
+  else if(b.dataset.b==='upd'&&updateReady){updateReady.postMessage('skip')}
+  renderBanners();
+});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;renderBanners()});
+if('serviceWorker' in navigator&&document.querySelector('link[rel=manifest]')&&location.protocol!=='file:'){
+  navigator.serviceWorker.register('./sw.js').then(reg=>{
+    const watch=w=>{if(!w)return;w.addEventListener('statechange',()=>{if(w.state==='installed'&&navigator.serviceWorker.controller){updateReady=w;renderBanners()}})};
+    if(reg.waiting&&navigator.serviceWorker.controller){updateReady=reg.waiting;renderBanners()}
+    reg.addEventListener('updatefound',()=>watch(reg.installing));
+  }).catch(()=>{});
+  let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload()}});
+}
+
+/* ---------- feedback ---------- */
+const FB=`【排程表 Beta 意見回饋】
+我用它來排：（例如：上課、班表、剪髮、家裡的事）
+用的手機：（iPhone／Android）
+最好用的地方：
+最不順手或看不懂的地方：
+希望增加的功能：
+會不會繼續用？為什麼：`;
+$('fbOpen').onclick=()=>{$('fbText').value=FB;$('fbDlg').classList.add('on')};
+$('fbNo').onclick=()=>$('fbDlg').classList.remove('on');
+$('fbCopy').onclick=async()=>{const t=$('fbText').value;try{await navigator.clipboard.writeText(t);toast('已複製，貼到 LINE 傳給朋友')}catch(e){$('fbText').select();toast('請長按全選後複製')}};
+
+showLockState();showLastBk();renderBanners();
+if(lockInfo())lockNow();
+}
+</script>
+</body>
+</html>
